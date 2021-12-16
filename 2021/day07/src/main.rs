@@ -59,12 +59,18 @@ fn part1(input: &String) -> EmptyResult {
     Ok(())
 }
 
-fn move_cost(start: i32, end: i32) -> i32 {
-    let mut sum: i32 = 0;
+fn move_cost(start: i32, end: i32, cost_results: &mut HashMap<i32, i32>) -> i32 {
+    let diff: i32 = (end - start).abs();
+    if cost_results.contains_key(&diff) {
+        return cost_results[&diff];
+    }
 
-    for i in 1 ..= (end - start).abs() {
+    let mut sum: i32 = 0;
+    for i in 1 ..= diff {
         sum += i;
     }
+
+    cost_results.insert(diff, sum);
 
     sum
 }
@@ -72,14 +78,15 @@ fn move_cost(start: i32, end: i32) -> i32 {
 fn part2(input: &String) -> EmptyResult {
     let crabs = parse(&input);
     let mut fuel: HashMap<i32, i32> = HashMap::new();
+    let mut costs: HashMap<i32, i32> = HashMap::new();
 
     for target in min(&crabs) .. max(&crabs) {
         let mut fuel2: i32 = 0;
-        crabs.iter().for_each(|pos| fuel2 += move_cost(*pos, target));
+        crabs.iter().for_each(|pos| fuel2 += move_cost(*pos, target, &mut costs));
         
         fuel.insert(target, fuel2);
     }
 
-    println!("part 1: {}", fuel.values().min().unwrap());
+    println!("part 2: {}", fuel.values().min().unwrap());
     Ok(())
 }
