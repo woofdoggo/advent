@@ -1,7 +1,9 @@
 use std::io::{self, Read};
 
+const SEAFLOOR_SIZE: usize = 1000;
+
 type Line = (usize, usize, usize, usize);
-type Seafloor = [[u8; 1000]; 1000];
+type Seafloor = [[u8; SEAFLOOR_SIZE]; SEAFLOOR_SIZE];
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
 fn main() -> EmptyResult {
@@ -19,28 +21,10 @@ fn parse(line: &str) -> Line {
     let mut start = words.first().expect("fail").split(',');
     let mut end = words.last().expect("fail").split(',');
 
-    let x1 = start.next().unwrap().parse::<usize>().unwrap();
-    let y1 = start.last().unwrap().parse::<usize>().unwrap();
-    let x2 = end.next().unwrap().parse::<usize>().unwrap();
-    let y2 = end.last().unwrap().parse::<usize>().unwrap();
-
-    let (startx, starty, endx, endy): Line;
-
-    if x1 < x2 { 
-        startx = x1;
-        endx = x2;
-    } else {
-        startx = x2;
-        endx = x1;
-    }
-
-    if y1 < y2 {
-        starty = y1;
-        endy = y2;
-    } else {
-        starty = y2;
-        endy = y1;
-    }
+    let startx = start.next().unwrap().parse::<usize>().unwrap();
+    let starty = start.last().unwrap().parse::<usize>().unwrap();
+    let endx = end.next().unwrap().parse::<usize>().unwrap();
+    let endy = end.last().unwrap().parse::<usize>().unwrap();
 
     (startx, starty, endx, endy)
 }
@@ -49,22 +33,37 @@ fn plot(allow_diagonals: bool, line: Line, map: &mut Seafloor) {
     let (startx, starty, endx, endy) = line;
 
     if startx == endx {
-        for i in starty ..= endy {
+        let range = if starty < endy { starty ..= endy } else { endy ..= starty };
+        for i in range {
             map[startx][i] += 1;
         }
     } else if starty == endy {
-        for i in startx ..= endx {
+        let range = if startx < endx { startx ..= endx } else { endx ..= startx };
+        for i in range {
             map[i][starty] += 1;
         }
     } else {
         if allow_diagonals {
+            let mut x: usize = startx;
+            let mut y: usize = starty;
 
+            let xm = if startx < endx { true } else { false };
+            let ym = if starty < endy { true } else { false };
+
+            while x != endx {
+                map[x][y] += 1;
+
+                if xm { x += 1 } else { x -= 1 };
+                if ym { y += 1 } else { y -= 1 };
+            }
+
+            map[x][y] += 1;
         }
     }
 }
 
 fn solve(allow_diagonals: bool, input: &String) -> u32 {
-    let mut map: Seafloor = [[0; 1000]; 1000];
+    let mut map: Seafloor = [[0; SEAFLOOR_SIZE]; SEAFLOOR_SIZE];
     for line in input.lines() {
         let (startx, starty, endx, endy) = parse(line);
         plot(allow_diagonals, (startx, starty, endx, endy), &mut map);
@@ -72,8 +71,8 @@ fn solve(allow_diagonals: bool, input: &String) -> u32 {
 
     // scan
     let mut spots: u32 = 0;
-    for i in 0 .. 1000 {
-        for j in 0 .. 1000 {
+    for i in 0 .. SEAFLOOR_SIZE {
+        for j in 0 .. SEAFLOOR_SIZE {
             if map[i][j] > 1 {
                 spots += 1;
             }
@@ -89,6 +88,6 @@ fn part1(input: &String) -> EmptyResult {
 }
 
 fn part2(input: &String) -> EmptyResult {
-    
+    println!("part 2: {}", solve(true, input));
     Ok(())
 }
