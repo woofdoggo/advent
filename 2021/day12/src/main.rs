@@ -1,4 +1,4 @@
-use std::io::{self, Read};
+use std::{io::{self, Read}, collections::HashSet};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -92,6 +92,51 @@ fn recurse(pf: &mut Pathfinder, path: Vec<usize>) {
     }
 }
 
+fn double_small(pf: &Pathfinder, path: &Vec<usize>) -> bool {
+    for step in path {
+        if pf.names[*step].chars().next().unwrap().is_uppercase() {
+            continue;
+        }
+
+        if path.iter().filter(|el| el == &step).count() >= 2 {
+            return true;
+        }
+    }
+
+    false
+}
+
+fn recurse2(pf: &mut Pathfinder, path: Vec<usize>) {
+    if *path.last().unwrap() == pf.end {
+        pf.paths.push(path.clone());
+        return;
+    }
+
+    // circumventing the borrow checker. woo
+    let conns = &pf.cache[*path.last().unwrap()].clone();
+
+    for conn in conns {
+        // path forward
+        let name = &pf.names[*conn];
+        if name.chars().next().unwrap().is_lowercase() {
+            let max_visits;
+            if *conn == pf.start || double_small(&pf, &path) {
+                max_visits = 1;
+            } else {
+                max_visits = 2;
+            }
+
+            if path.iter().filter(|el| *el == conn).count() >= max_visits {
+                continue;
+            }
+        }
+
+        let mut new_path = path.clone();
+        new_path.push(*conn);
+        recurse2(pf, new_path);
+    }
+}
+
 fn part1(input: &String) -> EmptyResult {
     let (connections, names) = parse(input);
     let paths: Vec<Vec<usize>> = Vec::new();
@@ -106,6 +151,14 @@ fn part1(input: &String) -> EmptyResult {
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let (connections, names) = parse(input);
+    let paths: Vec<Vec<usize>> = Vec::new();
 
+    let mut pf = Pathfinder::new(connections, names, paths);
+    let mut path: Vec<usize> = Vec::new();
+    path.push(pf.start);
+    recurse2(&mut pf, path);
+
+    println!("part 2: {}", pf.paths.len());
     Ok(())
 }
