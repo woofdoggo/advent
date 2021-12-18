@@ -12,7 +12,55 @@ fn main() -> EmptyResult {
     Ok(())
 }
 
-fn part1(input: &String) -> EmptyResult {
+fn fold(dots: Vec<(usize, usize)>, folds: &Vec<(bool, usize)>) -> Vec<(usize, usize)> {
+    let mut dots_new: Vec<(usize, usize)> = Vec::new();
+    for fold in folds {
+        if fold.0 {
+            // x fold (left)
+            for dot in &dots {
+                if dot.0 < fold.1 { 
+                    let newdot = (dot.0, dot.1);
+                    if !dots_new.contains(&newdot) { dots_new.push(newdot); }
+                } else {
+                    let newdot = (fold.1 - (dot.0 - fold.1), dot.1);
+                    if !dots_new.contains(&newdot) { dots_new.push(newdot); }
+                }
+            }
+        } else {
+            // y fold (up)
+            for dot in &dots {
+                if dot.1 < fold.1 { 
+                    let newdot = (dot.0, dot.1);
+                    if !dots_new.contains(&newdot) { dots_new.push(newdot); }
+                } else {
+                    let newdot = (dot.0, fold.1 - (dot.1 - fold.1));
+                    if !dots_new.contains(&newdot) { dots_new.push(newdot); }
+                }
+            }
+        }
+    }
+
+    dots_new
+}
+
+fn display(dots: &Vec<(usize, usize)>) {
+    for i in 0 .. 12 {
+        for j in 0 .. 12 {
+            let mut found = false;
+            for point in dots {
+                if point.0 == j && point.1 == i {
+                    found = true;
+                    break;
+                }
+            }
+
+            if found { print!("#"); } else { print!("."); }
+        }
+        print!("\n");
+    }
+}
+
+fn parse(input: &String) -> (Vec<(usize, usize)>, Vec<(bool, usize)>) {
     let mut dots: Vec<(usize, usize)> = Vec::new();
     let mut folds: Vec<(bool, usize)> = Vec::new();
 
@@ -39,51 +87,12 @@ fn part1(input: &String) -> EmptyResult {
         }
     }
 
-    
-    for fold in folds {
-    let mut dots_new: Vec<(usize, usize)> = Vec::new();
-    if fold.0 {
-        // x fold (left)
-        for dot in dots {
-            if dot.0 < fold.1 { 
-                let newdot = (dot.0, dot.1);
-                if !dots_new.contains(&newdot) { dots_new.push(newdot); }
-            } else {
-                let newdot = (fold.1 - (dot.0 - fold.1), dot.1);
-                if !dots_new.contains(&newdot) { dots_new.push(newdot); }
-            }
-        }
-    } else {
-        // y fold (up)
-        for dot in dots {
-            if dot.1 < fold.1 { 
-                let newdot = (dot.0, dot.1);
-                if !dots_new.contains(&newdot) { dots_new.push(newdot); }
-            } else {
-                let newdot = (dot.0, fold.1 - (dot.1 - fold.1));
-                if !dots_new.contains(&newdot) { dots_new.push(newdot); }
-            }
-        }
-    }
+    (dots, folds)
+}
 
-    dots = dots_new;
-
-    println!("");
-    for i in 0 .. 12 {
-        for j in 0 .. 12 {
-            let mut found = false;
-            for point in &dots {
-                if point.0 == j && point.1 == i {
-                    found = true;
-                    break;
-                }
-            }
-
-            if found { print!("#"); } else { print!("."); }
-        }
-        print!("\n");
-    }
-    }
+fn part1(input: &String) -> EmptyResult {
+    let (dots, folds) = parse(input);
+    let dots = fold(dots, &folds[..1].to_vec());
 
     println!("part 1: {}", dots.len());
     Ok(())
