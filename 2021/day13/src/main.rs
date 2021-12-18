@@ -13,8 +13,11 @@ fn main() -> EmptyResult {
 }
 
 fn fold(dots: Vec<(usize, usize)>, folds: &Vec<(bool, usize)>) -> Vec<(usize, usize)> {
-    let mut dots_new: Vec<(usize, usize)> = Vec::new();
+    let mut dots_new: Vec<(usize, usize)>;
+    let mut dots = dots.clone();
+
     for fold in folds {
+        dots_new = Vec::new();
         if fold.0 {
             // x fold (left)
             for dot in &dots {
@@ -38,14 +41,16 @@ fn fold(dots: Vec<(usize, usize)>, folds: &Vec<(bool, usize)>) -> Vec<(usize, us
                 }
             }
         }
+
+        dots = dots_new;
     }
 
-    dots_new
+    dots
 }
 
 fn display(dots: &Vec<(usize, usize)>) {
-    for i in 0 .. 12 {
-        for j in 0 .. 12 {
+    for i in 0 .. 40 {
+        for j in 0 .. 80 {
             let mut found = false;
             for point in dots {
                 if point.0 == j && point.1 == i {
@@ -99,6 +104,10 @@ fn part1(input: &String) -> EmptyResult {
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let (dots, folds) = parse(input);
+    let dots = fold(dots, &folds);
 
+    println!("part 2:");
+    display(&dots);
     Ok(())
 }
