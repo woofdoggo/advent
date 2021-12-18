@@ -75,39 +75,16 @@ fn part1(input: &String) -> EmptyResult {
     let mut occurrences: u32 = 0;
 
     for l in input.lines() {
-        for a in 0 .. 7 {
-            for b in 0 .. 7 {
-                if b == a { 
-                    continue; 
-                }
-                for c in 0 .. 7 {
-                    if c == a || c == b { 
-                        continue; 
-                    }
-                    for d in 0 .. 7 {
-                        if d == a || d == b || d == c { 
-                            continue; 
-                        }
-                        for e in 0 .. 7 {
-                            if e == a || e == b || e == c || e == d { 
-                                continue; 
-                            }
-                            for f in 0 .. 7 {
-                                if f == a || f == b || f == c || f == d || f == e {
-                                    continue;
-                                }
+        let parts: Vec<&str> = l.split('|').collect();
+        let result: Vec<&str> = parts.last().unwrap().split_whitespace().collect();
 
-                                for g in 0 .. 7 {
-                                    if g == a || g == b || g == c || g == d || g == e || g == f {
-                                        continue;
-                                    }
-
-                                    occurrences += try_solve((a, b, c, d, e, f, g), &l);
-                                }
-                            }
-                        }
-                    }
-                }
+        for word in result {
+            match word.len() {
+                2 => occurrences += 1,
+                3 => occurrences += 1,
+                4 => occurrences += 1,
+                7 => occurrences += 1,
+                _ => ()
             }
         }
     }
