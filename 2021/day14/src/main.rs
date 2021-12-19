@@ -89,7 +89,57 @@ fn part1(input: &String) -> EmptyResult {
     Ok(())
 }
 
+fn pairs_to_bytes(input: &Vec<Pair>) -> Vec<u8> {
+    let mut output: Vec<u8> = Vec::new();
+
+    for pair in input {
+        output.push(pair[0]);
+    }
+
+    output.push(input.last().unwrap()[1]);
+
+    output
+}
+
 fn part2(input: &String) -> EmptyResult {
+    let (pairs, mappings) = parse(input);
+    let mut cache: HashMap<Pair, Vec<u8>> = HashMap::new();
+    let mut count: HashMap<Pair, HashMap<u8, u32>> = HashMap::new();
+
+    // generate results/element counts for 20 iterations of each pair
+    for pair in mappings.keys() {
+        let mut result = vec![*pair];
+        for _ in 0 .. 20 {
+            result = cycle(&result, &mappings);
+        }
+        cache.insert(*pair, pairs_to_bytes(&result));
+        
+        let mut quantity: HashMap<u8, u32> = HashMap::new();
+        for pair2 in &result {
+            *quantity.entry(pair2[0]).or_insert(0) += 1;
+        }
+        *quantity.entry(result.last().unwrap()[1]).or_insert(0) += 1;
+        count.insert(*pair, quantity);
+
+        println!("cached {:?} with pair count of {}", pair, result.len());
+    }
+
+    // simulate using generated results
+    let mut results: HashMap<u8, u64> = HashMap::new();
+    for pair in pairs {
+        let simulated = cache.get(&pair).unwrap();
+        for i in 1 .. simulated.len() {
+            let current: Pair = [simulated[i - 1], simulated[i]];
+            let counts = count.get(&current).unwrap();
+            for pair in counts {
+                *results.entry(*pair.0).or_insert(0) += *pair.1 as u64;
+            }
+        }
+    }
+
+    let result = results.values().max().unwrap() - results.values().min().unwrap();
+    println!("part 2 results: {:?}", results);
+    println!("part 2: {}", result);
 
     Ok(())
 }
