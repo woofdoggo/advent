@@ -116,9 +116,8 @@ fn part2(input: &String) -> EmptyResult {
         
         let mut quantity: HashMap<u8, u32> = HashMap::new();
         for pair2 in &result {
-            *quantity.entry(pair2[0]).or_insert(0) += 1;
+            *quantity.entry(pair2[1]).or_insert(0) += 1;
         }
-        *quantity.entry(result.last().unwrap()[1]).or_insert(0) += 1;
         count.insert(*pair, quantity);
 
         println!("cached {:?} with pair count of {}", pair, result.len());
