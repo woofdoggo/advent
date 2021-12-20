@@ -1,4 +1,4 @@
-use std::{io::{self, Read}, usize};
+use std::{io::{self, Read}, collections::VecDeque};
 
 type Position = (usize, usize, i32);
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
@@ -85,11 +85,11 @@ fn tile_map(input: &Vec<Vec<u8>>) -> (Vec<Vec<u8>>, Vec<Vec<i32>>) {
 }
 
 fn solve(map: &Vec<Vec<u8>>, depth_map: &mut Vec<Vec<i32>>) -> () {
-    let mut queue: Vec<Position> = Vec::new();
+    let mut queue: VecDeque<Position> = VecDeque::new();
     
-    queue.push((0, 0, 0));
+    queue.insert(queue.len(), (0, 0, 0));
     while queue.len() > 0 {
-        let el = queue.pop().unwrap();
+        let el = queue.pop_front().unwrap();
         let (x, y) = (el.0, el.1);
         depth_map[el.0][el.1] = el.2;
 
@@ -98,7 +98,7 @@ fn solve(map: &Vec<Vec<u8>>, depth_map: &mut Vec<Vec<i32>>) -> () {
     }
 }
 
-fn add_queue(map: &Vec<Vec<u8>>, depth: &Vec<Vec<i32>>, queue: &mut Vec<Position>, pos: Position) {
+fn add_queue(map: &Vec<Vec<u8>>, depth: &Vec<Vec<i32>>, queue: &mut VecDeque<Position>, pos: Position) {
     if pos.0 > depth.len() - 1 || pos.1 > depth[0].len() - 1 {
         return;
     }
@@ -114,7 +114,7 @@ fn add_queue(map: &Vec<Vec<u8>>, depth: &Vec<Vec<i32>>, queue: &mut Vec<Position
         None => {
             let d = depth[pos.0 as usize][pos.1 as usize];
             if d == -1 || d > pos_depth {
-                queue.push((pos.0, pos.1, pos_depth));
+                queue.insert(queue.len(), (pos.0, pos.1, pos_depth));
             }
         }
     }
