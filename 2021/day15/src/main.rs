@@ -84,18 +84,33 @@ fn tile_map(input: &Vec<Vec<u8>>) -> (Vec<Vec<u8>>, Vec<Vec<i32>>) {
     (result, depth)
 }
 
-fn solve(map: &Vec<Vec<u8>>, depth_map: &mut Vec<Vec<i32>>) -> () {
+fn solve(map: &Vec<Vec<u8>>, depth_map: &mut Vec<Vec<i32>>) {
     let mut queue: VecDeque<Position> = VecDeque::new();
     
     queue.insert(queue.len(), (0, 0, 0));
     while queue.len() > 0 {
-        let el = queue.pop_front().unwrap();
+        let el = get_el(&mut queue);
         let (x, y) = (el.0, el.1);
         depth_map[el.0][el.1] = el.2;
 
+        if x > 0 { add_queue(&map, &depth_map, &mut queue, (x - 1, y, el.2)); }
+        if y > 0 { add_queue(&map, &depth_map, &mut queue, (x, y - 1, el.2)); }
         add_queue(&map, &depth_map, &mut queue, (x + 1, y, el.2));
         add_queue(&map, &depth_map, &mut queue, (x, y + 1, el.2));
     }
+}
+
+fn get_el(queue: &mut VecDeque<Position>) -> Position {
+    let mut min = i32::MAX;
+    let mut min_idx: usize = 0;
+    for (idx, el) in queue.iter().enumerate() {
+        if el.2 < min {
+            min_idx = idx;
+            min = el.2;
+        }
+    }
+
+    queue.remove(min_idx).unwrap()
 }
 
 fn add_queue(map: &Vec<Vec<u8>>, depth: &Vec<Vec<i32>>, queue: &mut VecDeque<Position>, pos: Position) {
@@ -113,7 +128,7 @@ fn add_queue(map: &Vec<Vec<u8>>, depth: &Vec<Vec<i32>>, queue: &mut VecDeque<Pos
         },
         None => {
             let d = depth[pos.0 as usize][pos.1 as usize];
-            if d == -1 || d > pos_depth {
+            if d == -1 {
                 queue.insert(queue.len(), (pos.0, pos.1, pos_depth));
             }
         }
