@@ -31,6 +31,59 @@ fn parse(input: &String) -> (Vec<Vec<u8>>, Vec<Vec<i32>>) {
     (result, depth)
 }
 
+fn clone_map(input: &Vec<Vec<u8>>, increment: u8) -> Vec<Vec<u8>> {
+    let mut result = Vec::new();
+
+    for line in input {
+        let mut row = Vec::new();
+        for cell in line {
+            let mut new_val = cell + increment;
+            if new_val > 9 {
+                new_val -= 9;
+            }
+
+            row.push(new_val);
+        }
+        result.push(row);
+    }
+
+    result
+}
+
+fn tile_map(input: &Vec<Vec<u8>>) -> (Vec<Vec<u8>>, Vec<Vec<i32>>) {
+    // generate blank map
+    let mut result = Vec::new();
+    let mut depth = Vec::new();
+
+    for _ in 0 .. input.len() * 5 {
+        let mut row = Vec::new();
+        let mut row2 = Vec::new();
+        for _ in 0 .. input.len() * 5 {
+            row.push(0);
+            row2.push(-1);
+        }
+        result.push(row);
+        depth.push(row2);
+    }
+
+
+    // fill map
+    for x in 0 .. 5 {
+        for y in 0 .. 5 {
+            let (ox, oy) = (input.len() * x, input.len() * y);
+            let curr = clone_map(&input, (x + y) as u8);
+
+            for i in 0 .. input.len() {
+                for j in 0 .. input.len() {
+                    result[i + ox][j + oy] = curr[i][j];
+                }
+            }
+        }
+    }
+
+    (result, depth)
+}
+
 fn solve(map: &Vec<Vec<u8>>, depth_map: &mut Vec<Vec<i32>>) -> () {
     let mut queue: Vec<Position> = Vec::new();
     
@@ -76,6 +129,10 @@ fn part1(input: &String) -> EmptyResult {
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let (orig_map, _) = parse(input);
+    let (map, mut depth) = tile_map(&orig_map);
+    solve(&map, &mut depth);
 
+    println!("part 2: {}", depth.last().unwrap().last().unwrap());
     Ok(())
 }
