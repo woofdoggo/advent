@@ -4,19 +4,19 @@ type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
 trait Packet {
     fn get_packet(&self) -> &dyn std::any::Any;
-    fn get_total_version(&self) -> u32;
+    fn get_total_version(&self) -> u64;
 }
 
 #[derive(Debug)]
 struct Group {
     last_group: bool,
-    number: u32
+    number: u64
 }
 
 #[derive(Debug)]
 struct GroupPacket {
     groups: Vec<Group>,
-    version: u32
+    version: u64
 }
 
 impl Packet for GroupPacket {
@@ -24,15 +24,16 @@ impl Packet for GroupPacket {
         self
     }
     
-    fn get_total_version(&self) -> u32 {
+    fn get_total_version(&self) -> u64 {
         self.version
     }
 }
 
 struct OperatorPacket {
     length_type: bool,
-    length: u32,
-    version: u32,
+    length: u64,
+    packet_type: u64,
+    version: u64,
     subpackets: Vec<Box<dyn Packet>>
 }
 
@@ -51,7 +52,7 @@ impl Packet for OperatorPacket {
         self
     }
 
-    fn get_total_version(&self) -> u32 {
+    fn get_total_version(&self) -> u64 {
         self.subpackets.iter().fold(self.version, |v, packet| v + packet.get_total_version())
     }
 }
@@ -79,7 +80,7 @@ impl PacketReader {
         }
     }
 
-    fn read_int(&mut self, bit_count: u32) -> Option<u32> {
+    fn read_int(&mut self, bit_count: u64) -> Option<u64> {
         let mut result = 0;
 
         for i in 1 ..= bit_count {
@@ -153,6 +154,7 @@ impl PacketReader {
                 Box::new(OperatorPacket {
                     length_type,
                     length,
+                    packet_type,
                     version,
                     subpackets
                 })
@@ -210,7 +212,73 @@ fn part1(input: &String) -> EmptyResult {
     Ok(())
 }
 
-fn part2(input: &String) -> EmptyResult {
+fn sum_packet(packet: &Box<dyn Packet>) -> u64 {
+    let group_packet = packet.get_packet().downcast_ref::<GroupPacket>();
+    let op_packet = packet.get_packet().downcast_ref::<OperatorPacket>();
+    let mut sum = 0;
 
+    if group_packet.is_some() {
+        let packet = group_packet.unwrap();
+        for (idx, group) in packet.groups.iter().rev().enumerate() {
+            sum += group.number << (idx * 4);
+        }
+    } else {
+        let packet = op_packet.unwrap();
+        match packet.packet_type {
+            0 => {
+                for subpacket in &packet.subpackets {
+                    sum += sum_packet(subpacket);
+                }
+            },
+            1 => {
+                sum = 1;
+                for subpacket in &packet.subpackets {
+                    sum *= sum_packet(subpacket);
+                }
+            },
+            2 => {
+                let mut min = u64::MAX;
+                for subpacket in &packet.subpackets {
+                    min = std::cmp::min(min, sum_packet(subpacket));
+                }
+                sum += min;
+            },
+            3 => {
+                let mut max = u64::MIN;
+                for subpacket in &packet.subpackets {
+                    max = std::cmp::max(max, sum_packet(subpacket));
+                }
+                sum += max;
+            },
+            5 => {
+                let a = sum_packet(packet.subpackets.first().unwrap());
+                let b = sum_packet(packet.subpackets.last().unwrap());
+
+                if a > b { sum = 1; } else { sum = 0; }
+            },
+            6 => {
+                let a = sum_packet(packet.subpackets.first().unwrap());
+                let b = sum_packet(packet.subpackets.last().unwrap());
+
+                if a < b { sum = 1; } else { sum = 0; }
+            },
+            7 => {
+                let a = sum_packet(packet.subpackets.first().unwrap());
+                let b = sum_packet(packet.subpackets.last().unwrap());
+
+                if a == b { sum = 1; } else { sum = 0; }
+            },
+            _ => panic!("invalid packet type {}", packet.packet_type)
+        };
+    }
+
+    sum
+}
+
+fn part2(input: &String) -> EmptyResult {
+    let mut reader = PacketReader::new(parse(input));
+    let packet = reader.read_packet();
+
+    println!("part 2: {}", sum_packet(&packet));
     Ok(())
 }
