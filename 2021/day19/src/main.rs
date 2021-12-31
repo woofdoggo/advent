@@ -1,11 +1,11 @@
-use std::{io::{self, Read}, collections::HashMap};
+use std::{io::{self, Read}, collections::HashMap, ops::RangeBounds};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 type Position = [i32; 3];
 
+#[derive(PartialEq, Eq, Hash)]
 struct Scanner {
-    beacons: Vec<Position>,
-    distances: HashMap<(usize, usize), u32>
+    beacons: Vec<Position>
 }
 
 type ShuffleTransform = (usize, usize, usize);
@@ -93,8 +93,7 @@ fn parse(input: &String) -> Vec<Scanner> {
         }
 
         out.push(Scanner {
-            beacons: scanner,
-            distances: HashMap::new()
+            beacons: scanner
         });
         i += 2;
     }
@@ -102,47 +101,32 @@ fn parse(input: &String) -> Vec<Scanner> {
     out
 }
 
-fn calc_distances(input: &mut Scanner) {
-    for i in 0 .. input.beacons.len() {
-        for j in 0 .. input.beacons.len() {
-            if i != j {
-                input.distances.insert((i, j), distance(input.beacons[i], input.beacons[j]));
-            }
-        }
-    }
-}
-
 fn apply_transform(p: Position, t: Transform) -> Position {
     [
-        p[t.0.0] * if t.1.0 { 1 } else { -1 },
-        p[t.0.1] * if t.1.1 { 1 } else { -1 },
-        p[t.0.2] * if t.1.2 { 1 } else { -1 },
+        p[t.0.0] * if t.1.0 { -1 } else { 1 },
+        p[t.0.1] * if t.1.1 { -1 } else { 1 },
+        p[t.0.2] * if t.1.2 { -1 } else { 1 }
     ]
 }
 
-fn diff(a: i32, b: i32) -> u32 {
-    if a > b {
-        (a - b) as u32
-    } else {
-        (b - a) as u32
-    }
-}
-
-fn distance(a: Position, b: Position) -> u32 {
-    diff(a[0], b[0]) + diff(a[1], b[1]) + diff(a[2], b[2])
+fn apply_opposite_transform(p: Position, t: Transform) -> Position {
+    [
+        p[t.0.2] * if t.1.0 { 1 } else { -1 },
+        p[t.0.1] * if t.1.1 { 1 } else { -1 },
+        p[t.0.0] * if t.1.2 { 1 } else { -1 }
+    ]
 }
 
 fn get_offset(a: Position, b: Position) -> Position {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-/// Solve for the positions of all beacons
-/// relative to scanner 0
-fn solve(input: &Vec<Scanner>) -> Vec<Position> {
+/// Solve for the transform and relative position of input_b to input_a.
+fn solve(input_a: &Scanner, input_b: &Scanner) -> Option<(Position, Transform)> {
     for t in TRANSFORMS {
         // apply transform to scanner a's beacons
         let mut new_beacons = Vec::new();
-        for beacon in &input[0].beacons {
+        for beacon in &input_a.beacons {
             new_beacons.push(apply_transform(*beacon, t));
         }
 
@@ -150,31 +134,71 @@ fn solve(input: &Vec<Scanner>) -> Vec<Position> {
         // beacons in scanner a's set and scanner b's set
         let mut offsets: HashMap<Position, u32> = HashMap::new();
         for i in new_beacons {
-            for j in &input[1].beacons {
+            for j in &input_b.beacons {
                 let offset = get_offset(i, *j);
                 *offsets.entry(offset).or_insert(0) += 1;
             }
         }
 
-        for val in offsets.values() {
-            if *val >= 12 {
-                println!("WE DID IT");
+        for (k, v) in offsets.iter() {
+            if *v >= 12 {
+                // we have 12 matches!
+                return Some((*k, t));
             }
         }
     }
 
-    Vec::new()
+    None
+}
+
+fn add_pos(a: Position, b: Position) -> Position {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
 fn part1(input: &String) -> EmptyResult {
-    // parse and prepare scanners
-    // distances do not change, even with transformation
-    let mut scanners = parse(input);
-    for mut scanner in &mut scanners {
-        calc_distances(&mut scanner);
+    let scanners = parse(input);
+
+    let mut beacons: Vec<Position> = Vec::new();
+    let mut positions: HashMap<usize, Position> = HashMap::new();
+    positions.insert(0, [0, 0, 0]);
+    
+    for i in 0 .. scanners.len() {
+        for j in 0 .. scanners.len() {
+            if i != j {
+                let solution = solve(&scanners[i], &scanners[j]);
+                if let Some((p, t)) = solution {
+                    let absolute: Position;
+                    let scanner: &Scanner;
+
+                    if let Some(pos) = positions.get(&i) {
+                        absolute = add_pos(p, *pos);
+                        scanner = &scanners[j];
+                        positions.insert(j, absolute);
+                    } else if let Some(pos) = positions.get(&j) {
+                        absolute = add_pos(p, *pos);
+                        scanner = &scanners[i];
+                        positions.insert(i, absolute);
+                    } else {
+                        panic!("fail");
+                    }
+
+                    // go through each point in beacon
+                    // apply the opposite transformation to it,
+                    // and then offset it by the scanner offset
+                    // and then map it
+                    for beacon in &scanner.beacons {
+                        let new_beacon = add_pos(absolute, apply_opposite_transform(*beacon, t));
+                        if !beacons.contains(&new_beacon) {
+                            beacons.push(new_beacon);
+                            println!("{:?}", new_beacon);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    println!("part 1: {}", solve(&scanners).len());
+    println!("part 1: {}", beacons.len());
     Ok(())
 }
 
