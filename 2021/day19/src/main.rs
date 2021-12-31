@@ -132,92 +132,33 @@ fn distance(a: Position, b: Position) -> u32 {
     diff(a[0], b[0]) + diff(a[1], b[1]) + diff(a[2], b[2])
 }
 
-fn get_offset(a: Position, b: Position) -> (i32, i32, i32) {
-    (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+fn get_offset(a: Position, b: Position) -> Position {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
 /// Solve for the positions of all beacons
 /// relative to scanner 0
 fn solve(input: &Vec<Scanner>) -> Vec<Position> {
-    for ((idx_a, idx_b), dist) in &input[0].distances {
-        for ((idx_c, idx_d), dist_2) in &input[1].distances {
-            if dist == dist_2 {
-                // two pairs of beacons with matching distances.
-                // (from different scanners, they may be the same
-                // actual physical pair)
-                //
-                // calculate offset of scanner b -> scanner a for
-                // these beacons to have matching positions.
-                // (if one exists - they may not actually be the same
-                // pair, and so no such matching position would exist)
-                //
-                // check if positions of at least 12 beacons now match
-                // if so, we have found the position of scanner b in
-                // relation to scanner a.
-                
-                let ba = input[0].beacons[*idx_a];
-                let bb = input[0].beacons[*idx_b];
-                let bc = input[1].beacons[*idx_c];
-                let bd = input[1].beacons[*idx_d];
+    for t in TRANSFORMS {
+        // apply transform to scanner a's beacons
+        let mut new_beacons = Vec::new();
+        for beacon in &input[0].beacons {
+            new_beacons.push(apply_transform(*beacon, t));
+        }
 
-                // we need to match the positions of one of the following:
-                // ba->bc && bb->bd
-                // ba->bd && bb->bc
-                //
-                // however, we also have to account for all of the possible
-                // transformations which could take place on the
-                // rotation/facing of scanner b.
+        // check to see if there is a constant offset between at least 12
+        // beacons in scanner a's set and scanner b's set
+        let mut offsets: HashMap<Position, u32> = HashMap::new();
+        for i in new_beacons {
+            for j in &input[1].beacons {
+                let offset = get_offset(i, *j);
+                *offsets.entry(offset).or_insert(0) += 1;
+            }
+        }
 
-                for t in TRANSFORMS {
-                    // transform the positions of the "matching" beacons
-                    // that are seen by scanner 0 to match what may
-                    // potentially be scanner 1's view
-                    let ta = apply_transform(ba, t);
-                    let tb = apply_transform(bb, t);
-
-                    // check if there is an equal offset between positions
-                    let diff = if get_offset(ta, bc) == get_offset(tb, bd) {
-                        Some(get_offset(ta, bc))
-                    } else if get_offset(ta, bd) == get_offset(tb, bc) {
-                        Some(get_offset(ta, bd))
-                    } else {
-                        None
-                    };
-
-                    if let Some(offset) = diff {
-                        println!("wo");
-                        // equal offset between pairs!
-                        // let's try to apply it to the beacons seen by each scanner
-                        // and check that there are a minimum of 12 matches.
-
-                        // apply offset
-                        let mut new_beacons: Vec<Position> = Vec::new();
-                        for beacon in &input[0].beacons {
-                            new_beacons.push([
-                                beacon[0] + offset.0,
-                                beacon[1] + offset.1,
-                                beacon[2] + offset.2
-                            ]);
-                        }
-
-                        let mut matches = 0;
-                        for beacon in new_beacons {
-                            for beacon_2 in &input[1].beacons {
-                                if  beacon[0] == beacon_2[0] && 
-                                    beacon[1] == beacon_2[1] &&
-                                    beacon[2] == beacon_2[2] 
-                                {
-                                    matches += 1;
-                                    break
-                                }
-                            }
-                        }
-
-                        if matches != 0 {
-                            println!("wo");
-                        }
-                    }
-                }
+        for val in offsets.values() {
+            if *val >= 12 {
+                println!("WE DID IT");
             }
         }
     }
