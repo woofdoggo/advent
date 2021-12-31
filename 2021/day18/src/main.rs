@@ -185,11 +185,27 @@ fn part1(input: &String) -> EmptyResult {
 
     // calculate magnitude
     println!("part 1: {}", read_magnitude(&num, &mut 1));
-
     Ok(())
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let lines: Vec<&str> = input.lines().collect();
+    let mut largest = 0;
 
+    for i in 0 .. lines.len() {
+        for j in 0 .. lines.len() {
+            if i == j { continue; }
+
+            let mut a = parse(lines[i]);
+            a.insert(0, Element::Open);
+            a.append(&mut parse(lines[j]));
+            a.push(Element::Close);
+
+            reduce(&mut a);
+            largest = std::cmp::max(read_magnitude(&a, &mut 1), largest);
+        }
+    }
+
+    println!("part 2: {}", largest);
     Ok(())
 }
