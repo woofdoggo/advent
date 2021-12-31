@@ -52,10 +52,14 @@ fn add_direction(input: &mut Vec<Element>, mut pos: usize, go_right: bool, add: 
 }
 
 fn reduce(input: &mut Vec<Element>) {
+    let mut on_explode = false;
+    let mut consecutive_fails = 0;
+
     loop {
         let mut pos = 0;
         let mut depth = 0;
 
+        on_explode = !on_explode;
         while pos < input.len() {
             let el = input[pos];
             pos += 1;
@@ -67,17 +71,21 @@ fn reduce(input: &mut Vec<Element>) {
 
                 // number
                 Element::Num(num) => {
-                    if depth > 4 {
-                        // 4 deep - check for explosion!
-                        if let Element::Num(n) = input[pos] {
-                            // we are in a pair. explode
-                            add_direction(input, pos - 1, false, num);
-                            add_direction(input, pos, true, n);
+                    if on_explode {
+                        if depth > 4 {
+                            // 4 deep - check for explosion!
+                            if let Element::Num(n) = input[pos] {
+                                // we are in a pair. explode
+                                add_direction(input, pos - 1, false, num);
+                                add_direction(input, pos, true, n);
 
-                            input.drain(pos - 2 ..= pos + 1);
-                            input.insert(pos - 2, Element::Num(0));
+                                input.drain(pos - 2 ..= pos + 1);
+                                input.insert(pos - 2, Element::Num(0));
 
-                            break;
+                                on_explode = false;
+                                consecutive_fails = 0;
+                                break;
+                            }
                         }
                     } else {
                         if num >= 10 {
@@ -90,6 +98,9 @@ fn reduce(input: &mut Vec<Element>) {
                             to_insert.push(Element::Close);
 
                             input.splice(pos - 1 ..= pos - 1, to_insert);
+
+                            on_explode = false;
+                            consecutive_fails = 0;
                             break;
                         }
                     }
@@ -98,8 +109,11 @@ fn reduce(input: &mut Vec<Element>) {
         }
 
         if pos == input.len() {
-            return;
+            consecutive_fails += 1;
+
+            if consecutive_fails > 10 { return; }
         }
+
     }
 }
 
@@ -128,6 +142,7 @@ fn read_magnitude(input: &Vec<Element>, pos: &mut usize) -> u32 {
     magnitude
 }
 
+#[allow(dead_code)]
 fn pretty_print(input: &Vec<Element>) {
     for i in 0 .. input.len() - 1 {
         let el = input[i];
@@ -166,7 +181,6 @@ fn part1(input: &String) -> EmptyResult {
 
         // reduce
         reduce(&mut num);
-        pretty_print(&num);
     }
 
     // calculate magnitude
