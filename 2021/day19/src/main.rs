@@ -10,9 +10,9 @@ const TRANSFORMS: [Transform; 24] = [
     [[1,0,0],[0,0,-1],[0,1,0]],
     [[1,0,0],[0,-1,0],[0,0,-1]],
     [[1,0,0],[0,0,-1],[0,-1,0]],
-    [[0,-1,0],[1,0,0],[0,0,1]],
-    [[0,0,1],[1,0,0],[0,1,0]],
-    [[0,1,0],[1,0,0],[0,0,-1]],
+    [[0,-1,0],[1,0,0],[0,0,1]], 
+    [[0,0,1],[1,0,0],[0,1,0]], 
+    [[0,1,0],[1,0,0],[0,0,-1]], 
     [[0,0,-1],[1,0,0],[0,-1,0]],
     [[-1,0,0],[0,-1,0],[0,0,1]],
     [[-1,0,0],[0,0,-1],[0,-1,0]],
@@ -30,6 +30,33 @@ const TRANSFORMS: [Transform; 24] = [
     [[0,-1,0],[0,0,1],[-1,0,0]],
     [[0,0,1],[0,1,0],[-1,0,0]],
     [[0,1,0],[0,0,-1],[-1,0,0]]
+];
+
+const INVERSE_TRANSFORMS: [Transform; 24] = [
+    [[1,0,0],[0,1,0],[0,0,1]],
+    [[1,0,0],[0,0,1],[0,-1,0]],
+    [[1,0,0],[0,-1,0],[0,0,-1]],
+    [[1,0,0],[0,0,-1],[0,-1,0]],
+    [[0,1,0],[-1,0,0],[0,0,1]],
+    [[0,1,0],[0,0,1],[1,0,0]],
+    [[0,1,0],[1,0,0],[0,0,-1]],
+    [[0,1,0],[0,0,-1],[-1,0,0]],
+    [[-1,0,0],[0,-1,0],[0,0,1]],
+    [[-1,0,0],[0,0,-1],[0,-1,0]],
+    [[-1,0,0],[0,1,0],[0,0,-1]],
+    [[-1,0,0],[0,0,1],[0,1,0]],
+    [[0,-1,0],[1,0,0],[0,0,1]],
+    [[0,-1,0],[0,0,-1],[1,0,0]],
+    [[0,-1,0],[-1,0,0],[0,0,-1]],
+    [[0,-1,0],[0,0,1],[-1,0,0]],
+    [[0,0,1],[0,1,0],[-1,0,0]],
+    [[0,0,1],[1,0,0],[0,1,0]],
+    [[0,0,1],[0,-1,0],[1,0,0]],
+    [[0,0,1],[-1,0,0],[0,-1,0]],
+    [[0,0,-1],[0,-1,0],[-1,0,0]],
+    [[0,0,-1],[-1,0,0],[0,1,0]],
+    [[0,0,-1],[0,1,0],[1,0,0]],
+    [[0,0,-1],[1,0,0],[0,-1,0]]
 ];
 
 fn main() -> EmptyResult {
@@ -122,6 +149,22 @@ fn apply_transform(p: Position, t: Transform) -> Position {
     ]
 }
 
+fn apply_inverse_transform(p: Position, orig_t: Transform) -> Position {
+    let t = INVERSE_TRANSFORMS[TRANSFORMS.iter().position(|el| *el == orig_t).unwrap()];
+    [
+        t[0][0] * p[0] + t[0][1] * p[1] + t[0][2] * p[2],
+        t[1][0] * p[0] + t[1][1] * p[1] + t[1][2] * p[2],
+        t[2][0] * p[0] + t[2][1] * p[1] + t[2][2] * p[2]
+    ]
+}
+
+fn apply_inverse_seq(mut p: Position, transforms: &Vec<Transform>) -> Position {
+    for t in transforms.iter().rev() {
+        p = apply_inverse_transform(p, *t);
+    }
+    p
+}
+
 impl Solver {
     fn solve(scanners: Vec<Scanner>) -> usize {
         let mut solver = Solver { 
@@ -141,16 +184,18 @@ impl Solver {
     }
 
     fn iterate(&mut self, scanner: usize, position: Position, transforms: Vec<Transform>) {
-        println!("scanner: {} | pos: {:?}\n---------------------", scanner, position);
+        println!("scanner: {} | pos: {:?}", scanner, position);
+
         for i in 0 .. self.scanners.len() {
             if !self.visited.contains(&i) {
                 let solution = solve(&self.scanners[scanner], &self.scanners[i]);
+
                 if let Some((p, t)) = solution {
                     let mut new_transforms = transforms.clone();
                     new_transforms.push(t);
 
                     for beacon in &self.scanners[i] {
-                        let new_beacon = transform_seq(*beacon, &new_transforms);
+                        let new_beacon = apply_transform(*beacon, t);
                         if !self.beacons.contains(&new_beacon) {
                             self.beacons.push(new_beacon)
                         }
@@ -159,27 +204,14 @@ impl Solver {
                     // iterate another level
                     self.visited.push(i);
 
-                    let transformed_pos = transform_seq(p, &new_transforms);
-                    println!("iterate to scanner {} from {} | relative: {:?} transformed: {:?}\n", i, scanner, p, transformed_pos);
-
-                    if i == 4 { println!("{:?}", new_transforms); }
-
                     self.iterate(i, add_pos(
                             position,
-                            transformed_pos
+                            apply_inverse_seq(p, &new_transforms)
                     ), new_transforms);
                 }
             }
         }
     }
-}
-
-fn transform_seq(mut position: Position, transforms: &Vec<Transform>) -> Position {
-    for transform in transforms.iter() {
-        position = apply_transform(position, *transform);
-    }
-
-    position
 }
 
 fn part1(input: &String) -> EmptyResult {
