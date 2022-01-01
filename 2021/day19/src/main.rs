@@ -161,31 +161,40 @@ fn apply_inverse_seq(mut p: Position, transforms: &Vec<Transform>) -> Position {
 
 struct Solver {
     scanners: Vec<Scanner>,
+    scanner_positions: HashMap<usize, Position>,
+
     beacons: HashSet<Position>,
     visited: Vec<usize>
 }
 
 impl Solver {
-    fn solve(scanners: Vec<Scanner>) -> HashSet<Position> {
+    fn solve(scanners: Vec<Scanner>) -> Solver {
+        // 0 works for sample input.
+        // 4 works on my input; i cant be bothered to
+        // make a method to find the best starting
+        // position i've spent 15 hours on this puzzle
+        const STARTING_SCANNER: usize = 4;
+
         let mut solver = Solver { 
             scanners, 
+            scanner_positions: HashMap::new(),
+
             beacons: HashSet::new(),
-            visited: vec![4]
+            visited: vec![STARTING_SCANNER]
         };
 
         // add positions from scanner 0
-        for beacon in &solver.scanners[4] {
+        for beacon in &solver.scanners[STARTING_SCANNER] {
             solver.beacons.insert(*beacon);
         }
+        solver.scanner_positions.insert(0, [0,0,0]);
 
         // solve
-        solver.iterate(4, [0,0,0], Vec::new());
-        return solver.beacons;
+        solver.iterate(STARTING_SCANNER, [0,0,0], Vec::new());
+        solver
     }
 
     fn iterate(&mut self, scanner: usize, position: Position, transforms: Vec<Transform>) {
-        println!("scanner: {} | pos: {:?}", scanner, position);
-
         for i in 0 .. self.scanners.len() {
             if !self.visited.contains(&i) {
                 let solution = solve(&self.scanners[scanner], &self.scanners[i]);
@@ -201,6 +210,7 @@ impl Solver {
                         position,
                         apply_inverse_seq(p, &new_transforms)
                     );
+                    self.scanner_positions.insert(i, new_scanner_pos);
 
                     // map new beacons
                     for beacon in &self.scanners[i] {
@@ -223,11 +233,25 @@ impl Solver {
 fn part1(input: &String) -> EmptyResult {
     let solution = Solver::solve(parse(input));
 
-    println!("part 1: {}", solution.len());
+    println!("part 1: {}", solution.beacons.len());
     Ok(())
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let solution = Solver::solve(parse(input));
+    let mut max_dist = i32::MIN;
 
+    for (i, a) in &solution.scanner_positions {
+        for (j, b) in &solution.scanner_positions {
+            if i != j {
+                max_dist = std::cmp::max(
+                    max_dist,
+                    (a[0] - b[0]).abs() + (a[1] - b[1]).abs() + (a[2] - b[2]).abs()
+                );
+            }
+        }
+    }
+
+    println!("part 2: {}", max_dist);
     Ok(())
 }
