@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 const SAMPLE_INPUT: [u32; 2] = [4, 8];
 const ACTUAL_INPUT: [u32; 2] = [1, 5];
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 enum Current {
     A, B
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct Player {
     position: u32,
     score: u32
@@ -25,7 +27,7 @@ impl Player {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct GameState {
     dice_rolls: u32,
     current_player: Current,
@@ -34,7 +36,7 @@ struct GameState {
 }
 
 impl GameState {
-    fn three_rolls(&mut self) -> u32 {
+    fn roll_thrice(&mut self) -> u32 {
         let mut sum = 0;
         for _ in 0 .. 3 {
             self.dice_rolls += 1;
@@ -50,7 +52,7 @@ impl GameState {
 
     /// Returns true if the game ends, otherwise false.
     fn turn(&mut self) -> bool {
-        let movement = self.three_rolls();
+        let movement = self.roll_thrice();
 
         match self.current_player {
             Current::A => {
@@ -65,12 +67,36 @@ impl GameState {
 
         self.a.score >= 1000 || self.b.score >= 1000
     }
+
+    fn quantum_turn(self) -> Vec<GameState> {
+        let mut out = Vec::new();
+        match self.current_player {
+            Current::A => {
+                for i in 1 ..= 3 {
+                    let mut new_state = self.clone();
+                    new_state.current_player = Current::B;
+                    new_state.a.move_forwards(i);
+                    out.push(new_state);
+                }
+            },
+            Current::B => {
+                for i in 1 ..= 3 {
+                    let mut new_state = self.clone();
+                    new_state.current_player = Current::A;
+                    new_state.b.move_forwards(i);
+                    out.push(new_state);
+                }
+            }
+        }
+
+        out
+    }
 }
 
 fn main() -> EmptyResult {
     // this input is so simple that i cant be bothered
     // to parse it
-    let input = ACTUAL_INPUT;
+    let input = SAMPLE_INPUT;
 
     let state = GameState {
         dice_rolls: 0,
@@ -86,7 +112,7 @@ fn main() -> EmptyResult {
     };
 
     part1(state.clone())?;
-    part2()?;
+    part2(state.clone())?;
 
     Ok(())
 }
@@ -101,7 +127,42 @@ fn part1(mut input: GameState) -> EmptyResult {
     Ok(())
 }
 
-fn part2() -> EmptyResult {
+fn part2(input: GameState) -> EmptyResult {
+    let mut universes: HashMap<GameState, u128> = HashMap::new();
+    universes.insert(input, 1);
 
+    let mut wins_a: u128 = 0;
+    let mut wins_b: u128 = 0;
+
+    loop {
+        let mut new_universes: HashMap<GameState, u128> = HashMap::new();
+
+        for (k, v) in universes.iter() {
+            let to_add = k.quantum_turn();
+
+            for universe in to_add {
+                // check if winner
+                if universe.a.score >= 21 {
+                    wins_a += v;
+                    continue;
+                } else if universe.b.score >= 21 {
+                    wins_b += v;
+                    continue;
+                }
+
+                // add to new_universes
+                *new_universes.entry(universe).or_insert(0) += v;
+            }
+        }
+
+        if new_universes.len() == 0 { break; }
+        universes = new_universes;
+        for (_, v) in universes.iter() {
+            print!("{},", v);
+        }
+        println!("\n");
+    }
+
+    println!("part 2: {}", std::cmp::max(wins_a, wins_b));
     Ok(())
 }
