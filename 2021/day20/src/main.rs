@@ -51,7 +51,7 @@ fn parse(input: &String) -> (Enhancement, Image) {
     }
 
     // read image points
-    const PADDING_SIZE: usize = 5;
+    const PADDING_SIZE: usize = 200;
     let mut img = Image::new(lines[2].len() + PADDING_SIZE * 2, false);
     let image = &mut img.points;
 
@@ -74,7 +74,7 @@ fn iter(algo: &Enhancement, img: Image) -> Image {
     // this doesn't work with sample (forced bg flip)
     // just remove the negation operator
     // i hate these one-off things in the input
-    let mut out = Image::new(img.points.len(), !img.bg);
+    let mut out = Image::new(img.points.len(), img.bg);
 
     for i in 0 .. img.points.len() {
         for j in 0 .. img.points.len() {
@@ -136,6 +136,12 @@ fn part1(input: &String) -> EmptyResult {
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let (algo, mut img) = parse(input);
 
+    for _ in 0 .. 50 {
+        img = iter(&algo, img);
+    }
+
+    println!("part 2: {}", sum_pixels(&img));
     Ok(())
 }
