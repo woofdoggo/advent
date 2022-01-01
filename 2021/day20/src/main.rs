@@ -51,8 +51,7 @@ fn parse(input: &String) -> (Enhancement, Image) {
     }
 
     // read image points
-    const PADDING_SIZE: usize = 200;
-    let mut img = Image::new(lines[2].len() + PADDING_SIZE * 2, false);
+    let mut img = Image::new(lines[2].len() + 2, false);
     let image = &mut img.points;
 
     for y in 2 .. lines.len() {
@@ -61,8 +60,8 @@ fn parse(input: &String) -> (Enhancement, Image) {
         // read row
         for (i, c) in line.char_indices() {
             match c {
-                '#' => image[i + PADDING_SIZE][y + PADDING_SIZE] = true,
-                _ => image[i + PADDING_SIZE][y + PADDING_SIZE] = false,
+                '#' => image[i + 1][y - 1] = true,
+                _ => image[i + 1][y - 1] = false,
             };
         }
     }
@@ -74,7 +73,7 @@ fn iter(algo: &Enhancement, img: Image) -> Image {
     // this doesn't work with sample (forced bg flip)
     // just remove the negation operator
     // i hate these one-off things in the input
-    let mut out = Image::new(img.points.len(), img.bg);
+    let mut out = Image::new(img.points.len() + 2, !img.bg);
 
     for i in 0 .. img.points.len() {
         for j in 0 .. img.points.len() {
@@ -91,7 +90,7 @@ fn iter(algo: &Enhancement, img: Image) -> Image {
             if img.get_pixel(ii + 1, ji - 1) { num |= 1 << 6; }
             if img.get_pixel(ii,     ji - 1) { num |= 1 << 7; }
             if img.get_pixel(ii - 1, ji - 1) { num |= 1 << 8; }
-            out.points[i][j] = algo[num];
+            out.points[i + 1][j + 1] = algo[num];
         }
     }
 
