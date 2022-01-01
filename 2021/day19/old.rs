@@ -1,4 +1,4 @@
-use std::{io::{self, Read}, collections::HashMap};
+use std::{io::{self, Read}, collections::HashMap, ops::RangeBounds};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 type Position = [i32; 3];
@@ -8,32 +8,57 @@ struct Scanner {
     beacons: Vec<Position>
 }
 
-type Transform = [[i32; 3]; 3];
-const TRANSFORMS: [Transform; 24] = [
-    [[1,0,0],[0,1,0],[0,0,1]],
-    [[1,0,0],[0,0,-1],[0,1,0]],
-    [[1,0,0],[0,-1,0],[0,0,-1]],
-    [[1,0,0],[0,0,-1],[0,-1,0]],
-    [[0,-1,0],[1,0,0],[0,0,1]],
-    [[0,0,1],[1,0,0],[0,1,0]],
-    [[0,1,0],[1,0,0],[0,0,-1]],
-    [[0,0,-1],[1,0,0],[0,-1,0]],
-    [[-1,0,0],[0,-1,0],[0,0,1]],
-    [[-1,0,0],[0,0,-1],[0,-1,0]],
-    [[-1,0,0],[0,1,0],[0,0,-1]],
-    [[-1,0,0],[0,0,1],[0,1,0]],
-    [[0,1,0],[-1,0,0],[0,0,1]],
-    [[0,0,1],[-1,0,0],[0,-1,0]],
-    [[0,-1,0],[-1,0,0],[0,0,-1]],
-    [[0,0,-1],[-1,0,0],[0,1,0]],
-    [[0,0,-1],[0,1,0],[1,0,0]],
-    [[0,1,0],[0,0,1],[1,0,0]],
-    [[0,0,1],[0,-1,0],[1,0,0]],
-    [[0,-1,0],[0,0,-1],[1,0,0]],
-    [[0,0,-1],[0,-1,0],[-1,0,0]],
-    [[0,-1,0],[0,0,1],[-1,0,0]],
-    [[0,0,1],[0,1,0],[-1,0,0]],
-    [[0,1,0],[0,0,-1],[-1,0,0]]
+type ShuffleTransform = (usize, usize, usize);
+type SignTransform = (bool, bool, bool);
+type Transform = (ShuffleTransform, SignTransform);
+
+const SHUFFLES: [ShuffleTransform; 6] = [
+    (0, 1, 2), (0, 2, 1),
+    (1, 0, 2), (1, 2, 0),
+    (2, 0, 1), (2, 1, 0)
+];
+
+const SIGNS: [SignTransform; 8] = [
+    (true,  true,  true ),
+    (true,  true,  false),
+    (true,  false, true ),
+    (true,  false, false),
+    (false, true,  true ),
+    (false, true,  false),
+    (false, false, true ),
+    (false, false, false)
+];
+
+const TRANSFORMS: [Transform; 48] = [
+    (SHUFFLES[0], SIGNS[0]), (SHUFFLES[0], SIGNS[1]),
+    (SHUFFLES[0], SIGNS[2]), (SHUFFLES[0], SIGNS[3]),
+    (SHUFFLES[0], SIGNS[4]), (SHUFFLES[0], SIGNS[5]),
+    (SHUFFLES[0], SIGNS[6]), (SHUFFLES[0], SIGNS[7]),
+
+    (SHUFFLES[1], SIGNS[0]), (SHUFFLES[1], SIGNS[1]),
+    (SHUFFLES[1], SIGNS[2]), (SHUFFLES[1], SIGNS[3]),
+    (SHUFFLES[1], SIGNS[4]), (SHUFFLES[1], SIGNS[5]),
+    (SHUFFLES[1], SIGNS[6]), (SHUFFLES[1], SIGNS[7]),
+
+    (SHUFFLES[2], SIGNS[0]), (SHUFFLES[2], SIGNS[1]),
+    (SHUFFLES[2], SIGNS[2]), (SHUFFLES[2], SIGNS[3]),
+    (SHUFFLES[2], SIGNS[4]), (SHUFFLES[2], SIGNS[5]),
+    (SHUFFLES[2], SIGNS[6]), (SHUFFLES[2], SIGNS[7]),
+
+    (SHUFFLES[3], SIGNS[0]), (SHUFFLES[3], SIGNS[1]),
+    (SHUFFLES[3], SIGNS[2]), (SHUFFLES[3], SIGNS[3]),
+    (SHUFFLES[3], SIGNS[4]), (SHUFFLES[3], SIGNS[5]),
+    (SHUFFLES[3], SIGNS[6]), (SHUFFLES[3], SIGNS[7]),
+
+    (SHUFFLES[4], SIGNS[0]), (SHUFFLES[4], SIGNS[1]),
+    (SHUFFLES[4], SIGNS[2]), (SHUFFLES[4], SIGNS[3]),
+    (SHUFFLES[4], SIGNS[4]), (SHUFFLES[4], SIGNS[5]),
+    (SHUFFLES[4], SIGNS[6]), (SHUFFLES[4], SIGNS[7]),
+
+    (SHUFFLES[5], SIGNS[0]), (SHUFFLES[5], SIGNS[1]),
+    (SHUFFLES[5], SIGNS[2]), (SHUFFLES[5], SIGNS[3]),
+    (SHUFFLES[5], SIGNS[4]), (SHUFFLES[5], SIGNS[5]),
+    (SHUFFLES[5], SIGNS[6]), (SHUFFLES[5], SIGNS[7]),
 ];
 
 fn main() -> EmptyResult {
@@ -78,17 +103,17 @@ fn parse(input: &String) -> Vec<Scanner> {
 
 fn apply_transform(p: Position, t: Transform) -> Position {
     [
-        t[0][0] * p[0] + t[0][1] * p[1] + t[0][2] * p[2],
-        t[1][0] * p[0] + t[1][1] * p[1] + t[1][2] * p[2],
-        t[2][0] * p[0] + t[2][1] * p[1] + t[2][2] * p[2]
+        p[t.0.0] * if t.1.0 { -1 } else { 1 },
+        p[t.0.1] * if t.1.1 { -1 } else { 1 },
+        p[t.0.2] * if t.1.2 { -1 } else { 1 }
     ]
 }
 
 fn apply_opposite_transform(p: Position, t: Transform) -> Position {
     [
-        t[0][0] * p[0] + t[0][1] * p[1] + t[0][2] * p[2],
-        t[1][0] * p[0] + t[1][1] * p[1] + t[1][2] * p[2],
-        t[2][0] * p[0] + t[2][1] * p[1] + t[2][2] * p[2]
+        p[t.0.2] * if t.1.0 { 1 } else { -1 },
+        p[t.0.1] * if t.1.1 { 1 } else { -1 },
+        p[t.0.0] * if t.1.2 { 1 } else { -1 }
     ]
 }
 
@@ -162,18 +187,18 @@ fn part1(input: &String) -> EmptyResult {
                     // and then offset it by the scanner offset
                     // and then map it
                     for beacon in &scanner.beacons {
-                        let new_beacon = add_pos(absolute, apply_opposite_transform(*beacon, t));
+                        let new_beacon = add_pos(absolute, apply_transform(*beacon, t));
                         if !beacons.contains(&new_beacon) {
                             beacons.push(new_beacon);
-                            println!("{:?}", new_beacon);
                         }
                     }
                 }
             }
         }
     }
-    println!("{:?}", positions);
+    println!("{:?}", solve(&scanners[0], &scanners[1]));
 
+    println!("{:?}", positions);
     println!("part 1: {}", beacons.len());
     Ok(())
 }
