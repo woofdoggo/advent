@@ -67,36 +67,12 @@ impl GameState {
 
         self.a.score >= 1000 || self.b.score >= 1000
     }
-
-    fn quantum_turn(self) -> Vec<GameState> {
-        let mut out = Vec::new();
-        match self.current_player {
-            Current::A => {
-                for i in 1 ..= 3 {
-                    let mut new_state = self.clone();
-                    new_state.current_player = Current::B;
-                    new_state.a.move_forwards(i);
-                    out.push(new_state);
-                }
-            },
-            Current::B => {
-                for i in 1 ..= 3 {
-                    let mut new_state = self.clone();
-                    new_state.current_player = Current::A;
-                    new_state.b.move_forwards(i);
-                    out.push(new_state);
-                }
-            }
-        }
-
-        out
-    }
 }
 
 fn main() -> EmptyResult {
     // this input is so simple that i cant be bothered
     // to parse it
-    let input = SAMPLE_INPUT;
+    let input = ACTUAL_INPUT;
 
     let state = GameState {
         dice_rolls: 0,
@@ -138,29 +114,39 @@ fn part2(input: GameState) -> EmptyResult {
         let mut new_universes: HashMap<GameState, u128> = HashMap::new();
 
         for (k, v) in universes.iter() {
-            let to_add = k.quantum_turn();
+            for a in 1 ..= 3 {
+                for b in 1 ..= 3 {
+                    for c in 1 ..= 3 {
+                        let mut new_state = k.clone();
+                        let player = match new_state.current_player {
+                            Current::A => {
+                                new_state.current_player = Current::B;
+                                &mut new_state.a
+                            },
+                            Current::B => {
+                                new_state.current_player = Current::A;
+                                &mut new_state.b
+                            }
+                        };
 
-            for universe in to_add {
-                // check if winner
-                if universe.a.score >= 21 {
-                    wins_a += v;
-                    continue;
-                } else if universe.b.score >= 21 {
-                    wins_b += v;
-                    continue;
+                        player.move_forwards(a + b + c);
+                        
+                        if new_state.a.score >= 21 {
+                            wins_a += v;
+                            continue;
+                        } else if new_state.b.score >= 21 {
+                            wins_b += v;
+                            continue;
+                        }
+
+                        *new_universes.entry(new_state).or_insert(0) += v;
+                    }
                 }
-
-                // add to new_universes
-                *new_universes.entry(universe).or_insert(0) += v;
             }
         }
 
         if new_universes.len() == 0 { break; }
         universes = new_universes;
-        for (_, v) in universes.iter() {
-            print!("{},", v);
-        }
-        println!("\n");
     }
 
     println!("part 2: {}", std::cmp::max(wins_a, wins_b));
