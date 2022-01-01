@@ -152,13 +152,6 @@ fn apply_inverse_transform(p: Position, orig_t: Transform) -> Position {
     ]
 }
 
-fn apply_seq(mut p: Position, transforms: &Vec<Transform>) -> Position {
-    for t in transforms.iter().rev() {
-        p = apply_transform(p, *t);
-    }
-    p
-}
-
 fn apply_inverse_seq(mut p: Position, transforms: &Vec<Transform>) -> Position {
     for t in transforms.iter().rev() {
         p = apply_inverse_transform(p, *t);
@@ -198,14 +191,18 @@ impl Solver {
                 let solution = solve(&self.scanners[scanner], &self.scanners[i]);
 
                 if let Some((p, t)) = solution {
+                    // update new transforms list with the transformation
+                    // for the current scanner
                     let mut new_transforms = transforms.clone();
                     new_transforms.push(t);
 
+                    // calculate position of this scanner
                     let new_scanner_pos = add_pos(
                         position,
                         apply_inverse_seq(p, &new_transforms)
                     );
 
+                    // map new beacons
                     for beacon in &self.scanners[i] {
                         let new_beacon = add_pos(
                             new_scanner_pos,
@@ -216,7 +213,6 @@ impl Solver {
 
                     // iterate another level
                     self.visited.push(i);
-
                     self.iterate(i, new_scanner_pos, new_transforms);
                 }
             }
