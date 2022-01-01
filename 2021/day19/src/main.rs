@@ -170,16 +170,16 @@ impl Solver {
         let mut solver = Solver { 
             scanners, 
             beacons: HashSet::new(),
-            visited: vec![0]
+            visited: vec![4]
         };
 
         // add positions from scanner 0
-        for beacon in &solver.scanners[0] {
+        for beacon in &solver.scanners[4] {
             solver.beacons.insert(*beacon);
         }
 
         // solve
-        solver.iterate(0, [0,0,0], Vec::new());
+        solver.iterate(4, [0,0,0], Vec::new());
         return solver.beacons;
     }
 
