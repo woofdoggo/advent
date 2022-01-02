@@ -1,8 +1,8 @@
 use std::{io::{self, Read}, hash::{Hasher, Hash}};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
-type Hallway = [Amphipod; 15];
-type Room = [Amphipod; 2];
+type Hallway = [Amphipod; 11];
+type Room = Vec<Amphipod>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Amphipod {
@@ -13,7 +13,19 @@ enum Amphipod {
     Empty
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+impl Amphipod {
+    fn get_cost(self) -> u32 {
+        match self {
+            Self::Amber => 1,
+            Self::Bronze => 10,
+            Self::Copper => 100,
+            Self::Desert => 1000,
+            Self::Empty => panic!("tried to get cost for empty amphipod")
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct State {
     energy_cost: u32,
 
@@ -35,74 +47,114 @@ impl Hash for State {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Move {
-    /// Position in hallway, move left/right
-    Hallway(usize, bool),
+fn abs_diff(a: usize, b: usize) -> u32 {
+    if a > b {
+        (a - b) as u32
+    } else {
+        (b - a) as u32
+    }
+}
 
-    /// Enter given room
-    Enter(usize),
-
-    /// Leave given room
-    Leave(usize)
+fn hallway_cost(start: usize, dest: usize, pod_cost: u32) -> u32 {
+    abs_diff(start, dest) * pod_cost
 }
 
 impl State {
-    fn enter_room(&mut self, room: usize) {
-        let (room, pos) = match room {
-            0 => (&mut self.a, 3),
-            1 => (&mut self.b, 5),
-            2 => (&mut self.c, 7),
-            3 => (&mut self.d, 9),
-            _ => panic!("invalid room leave")
-        };
+    fn generate_substates(&self) -> Vec<Self> {
+        let mut out = Vec::new();
 
-        self.energy_cost += State::get_cost(self.hallway[pos]);
-        if room[1] == Amphipod::Empty {
-            room[1] = self.hallway[pos];
-        } else if room[0] == Amphipod::Empty {
-            room[0] = self.hallway[pos];
-        } else {
-            panic!("cant enter room");
-        }
-        self.hallway[pos] = Amphipod::Empty;
-    }
+        // list of states to generate:
+        // 1. move to any point on the hallway ends
+        // 2. move to any point between rooms
+        // 3. leave one room and enter another
+        // 4. enter a room
+        const VALID_HALLWAY_SLOTS: [usize; 7] = [0, 1, 3, 5, 7, 9, 10];
 
-    fn leave_room(&mut self, room: usize) {
-        let (room, pos) = match room {
-            0 => (&mut self.a, 3),
-            1 => (&mut self.b, 5),
-            2 => (&mut self.c, 7),
-            3 => (&mut self.d, 9),
-            _ => panic!("invalid room leave")
-        };
-
-        if room[0] != Amphipod::Empty {
-            self.hallway[pos] = room[0];
-            self.energy_cost += State::get_cost(room[0]);
-            room[0] = Amphipod::Empty;
-        } else {
-            self.hallway[pos] = room[1];
-            self.energy_cost += State::get_cost(room[1]);
-            room[1] = Amphipod::Empty;
-        }
-    }
-
-    fn room_has_slot(&self, room: usize) -> (bool, bool) {
-        let room = match room {
-            0 => self.a,
-            1 => self.b,
-            2 => self.c,
-            3 => self.d,
-            _ => panic!("invalid room vacancy check")
-        };
-
-        (room[0] == Amphipod::Empty, room[1] == Amphipod::Empty)
-    }
-
-    fn is_sorted(&self) -> bool {
+        // generate actions for unsorted amphipods
         for i in 0 .. 4 {
-            if !self.is_room_sorted(i) {
+            // skip if room is sorted or empty
+            if self.is_room_sorted(i) { continue; }
+            if self.get_room(i).is_empty() { continue; }
+            
+            // leave room -> hallway spot
+            for valid_spot in VALID_HALLWAY_SLOTS {
+                if self.can_go(i * 2 + 2, valid_spot) {
+                    let mut new = self.clone();
+                    let pod = new.leave_room(i);
+                    new.hallway[valid_spot] = pod;
+                    new.energy_cost += hallway_cost(i*2+2, valid_spot, pod.get_cost());
+
+                    out.push(new);
+                }
+            }
+
+            // leave room and enter another
+            let pod = self.get_room(i).last().unwrap();
+            let room = match *pod {
+                Amphipod::Amber => 0,
+                Amphipod::Bronze => 1,
+                Amphipod::Copper => 2,
+                Amphipod::Desert => 3,
+                _ => unreachable!("cant be empty amphipod if we got one")
+            };
+
+            if self.can_go(i * 2 + 2, room * 2 + 2) {
+                if self.can_enter_room(*pod) {
+                    let mut new = self.clone();
+                    new.leave_and_goto(i, room);
+
+                    out.push(new);
+                }
+            }
+        }
+
+        // in hallway -> enter room
+        for valid_spot in VALID_HALLWAY_SLOTS {
+            let pod = self.hallway[valid_spot];
+            let room = match pod {
+                Amphipod::Amber => 0,
+                Amphipod::Bronze => 1,
+                Amphipod::Copper => 2,
+                Amphipod::Desert => 3,
+                Amphipod::Empty => continue
+            };
+
+            if self.can_go(valid_spot, room * 2 + 2) {
+                if self.can_enter_room(pod) {
+                    let mut new = self.clone();
+                    new.hallway[valid_spot] = Amphipod::Empty;
+                    new.enter_room(room, pod);
+                    new.energy_cost += hallway_cost(valid_spot, room * 2 + 2, pod.get_cost());
+
+                    out.push(new);
+                }
+            }
+        }
+
+        out
+    }
+
+    fn can_go(&self, start: usize, dest: usize) -> bool {
+        for i in start ..= dest {
+            if self.hallway[i] != Amphipod::Empty {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn can_enter_room(&self, pod: Amphipod) -> bool {
+        let room = match pod {
+            Amphipod::Amber => &self.a,
+            Amphipod::Bronze => &self.b,
+            Amphipod::Copper => &self.c,
+            Amphipod::Desert => &self.d,
+            _ => panic!("invalid can enter room check")
+        };
+
+        for el in room {
+            if *el != pod {
                 return false;
             }
         }
@@ -111,89 +163,76 @@ impl State {
     }
 
     fn is_room_sorted(&self, room: usize) -> bool {
-        let (amphipod, room) = match room {
-            0 => (Amphipod::Amber,  self.a),
-            1 => (Amphipod::Bronze, self.b),
-            2 => (Amphipod::Copper, self.c),
-            3 => (Amphipod::Desert, self.d),
+        let (room, pod) = match room {
+            0 => (&self.a, Amphipod::Amber),
+            1 => (&self.b, Amphipod::Bronze),
+            2 => (&self.c, Amphipod::Copper),
+            3 => (&self.d, Amphipod::Desert),
             _ => panic!("invalid room sort check")
         };
 
-        room[0] == amphipod && room[1] == amphipod
-    }
-
-    fn list_moves(&self) -> Vec<Move> {
-        let mut out = Vec::new();
-
-        // find room leaves
-        for room in 0 .. 4 {
-            if !self.is_room_sorted(room) {
-                out.push(Move::Leave(room));
+        for el in room {
+            if *el != pod {
+                return false;
             }
         }
 
-        // find room enters
-        for room in 0 .. 4 {
-            // check if appropriate amphipod is above room
-            if self.hallway[3 + room * 2] == State::get_amphipod(room) {
-                // check if there is another one of the wrong amphipods in the room
-                let (a, b) = self.room_has_slot(room);
-
-                // room has no amphipods - we can move in
-                if a && b {
-                    out.push(Move::Enter(room));
-                    continue;
-                }
-
-                if !a && !b { 
-                    // room is full - we cannot move in
-                    continue; 
-                } else {
-                    // room has an open slot, check if bottom slot is sorted properly
-                    let (amphipod, actual_room) = match room {
-                        0 => (Amphipod::Amber,  self.a),
-                        1 => (Amphipod::Bronze, self.b),
-                        2 => (Amphipod::Copper, self.c),
-                        3 => (Amphipod::Desert, self.d),
-                        _ => panic!("invalid room sort check")
-                    };
-
-                    // bottom slot sorted properly - we can move in
-                    if actual_room[1] == amphipod {
-                        out.push(Move::Enter(room));
-                    }
-                }
-            }
-        }
-
-        // find hallway maneuvers
-        // this is the tricky part.
-        //
-        // we want to make sure that we only add movements
-        // which are actually beneficial - eg. don't make any movements
-        // which immediately loop back to the previous state
-
-        out
+        true
     }
 
-    fn get_amphipod(idx: usize) -> Amphipod {
-        match idx {
-            0 => Amphipod::Amber,
-            1 => Amphipod::Bronze,
-            2 => Amphipod::Copper,
-            3 => Amphipod::Desert,
-            _ => panic!("invalid amphipod room check")
+    fn get_room(&self, room: usize) -> &Room {
+        match room {
+            0 => &self.a,
+            1 => &self.b,
+            2 => &self.c,
+            3 => &self.d,
+            _ => panic!("invalid room get")
         }
     }
 
-    fn get_cost(amphipod: Amphipod) -> u32 {
-        match amphipod {
-            Amphipod::Amber => 1,
-            Amphipod::Bronze => 10,
-            Amphipod::Copper => 100,
-            Amphipod::Desert => 1000,
-            Amphipod::Empty => panic!("no energy cost for empty amphipod")
+    fn get_room_mut(&mut self, room: usize) -> &mut Room {
+        match room {
+            0 => &mut self.a,
+            1 => &mut self.b,
+            2 => &mut self.c,
+            3 => &mut self.d,
+            _ => panic!("invalid room get")
         }
+    }
+
+    fn enter_room(&mut self, room: usize, pod: Amphipod) {
+        let room = self.get_room_mut(room);
+
+        if room.len() == 2 {
+            panic!("room enter: room is full");
+        }
+
+        room.push(pod);
+
+        // this will add the energy cost once if the amphipod only had
+        // to move one tile down. otherwise it will add it twice
+        self.energy_cost = pod.get_cost() * (3 - room.len()) as u32; 
+    }
+
+    fn leave_room(&mut self, room: usize) -> Amphipod {
+        let room = self.get_room_mut(room);
+        let pod = room.pop().unwrap();
+
+        // this will add the energy const once if the amphipod only had
+        // to move one tile up. otherwise it will add it twice
+        self.energy_cost += pod.get_cost() * (2 - room.len()) as u32;
+
+        pod
+    }
+
+    /// THIS ASSUMES THAT THE ROOM IS REACHABLE.
+    fn leave_and_goto(&mut self, start: usize, dest: usize) {
+        // leave start, enter dest
+        let pod = self.leave_room(start);
+        self.enter_room(dest, pod);
+
+        // update energy cost with hallway movement
+        self.energy_cost += hallway_cost(start * 2 + 2, dest * 2 + 2, pod.get_cost());
     }
 }
 
@@ -225,7 +264,7 @@ fn cta(input: char) -> Amphipod {
         'B' => Amphipod::Bronze,
         'C' => Amphipod::Copper,
         'D' => Amphipod::Desert,
-        _ => panic!("invalid amphipod")
+        _ => panic!("invalid char-to-amphipod")
     }
 }
 
@@ -236,11 +275,11 @@ fn parse(input: &String) -> State {
     State {
         energy_cost: 0,
 
-        hallway: [Amphipod::Empty; 15],
-        a: [cta(row_a.chars().nth(3).unwrap()), cta(row_b.chars().nth(3).unwrap())],
-        b: [cta(row_a.chars().nth(5).unwrap()), cta(row_b.chars().nth(5).unwrap())],
-        c: [cta(row_a.chars().nth(7).unwrap()), cta(row_b.chars().nth(7).unwrap())],
-        d: [cta(row_a.chars().nth(9).unwrap()), cta(row_b.chars().nth(9).unwrap())]
+        hallway: [Amphipod::Empty; 11],
+        a: vec![cta(row_b.chars().nth(3).unwrap()), cta(row_a.chars().nth(3).unwrap())],
+        b: vec![cta(row_b.chars().nth(5).unwrap()), cta(row_a.chars().nth(5).unwrap())],
+        c: vec![cta(row_b.chars().nth(7).unwrap()), cta(row_a.chars().nth(7).unwrap())],
+        d: vec![cta(row_b.chars().nth(9).unwrap()), cta(row_a.chars().nth(9).unwrap())]
     }
 }
 
