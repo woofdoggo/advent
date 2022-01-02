@@ -1,7 +1,5 @@
-use std::collections::HashSet;
 use std::io::{self, Read};
-use std::cmp::{max as max, Ordering};
-use std::cmp::min as min;
+use std::cmp::{max as max, min as min};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -81,26 +79,21 @@ fn cuboid_volume(input: Cuboid) -> u64 {
     ((input.0.2 - input.1.2).abs() as u64 + 1)
 }
 
-fn part1(input: &String) -> EmptyResult {
-    // get list of reboots and sort them
-    // so that "on" reboots are first.
-    let mut reboots = parse(input);
-    reboots.sort_by(|a, b| {
-        if a.1 == b.1 { Ordering::Equal }
-        else if a.1 && !b.1 { Ordering::Greater }
-        else { Ordering::Less }
-    });
-
-    const VALID_CUBE: Cuboid = ((-50, -50, -50), (50, 50, 50));
+fn solve(reboots: Vec<(Cuboid, bool)>, valid_cube: Option<Cuboid>) -> u64 {
     let mut cuboids: Vec<(Cuboid, bool)> = Vec::new();
 
-    for reboot in reboots {
-        if let Some(c) = intersection(reboot.0, VALID_CUBE) {
+    for reboot in &reboots {
+        let collision = match valid_cube {
+            Some(valid) => intersection(reboot.0, valid),
+            None => Some(reboot.0)
+        };
+
+        if let Some(c) = collision {
             // check for any intersections with other "ON" cuboids
             let mut sub_intersect = Vec::new();
             for cuboid in &cuboids {
                 if let Some(c2) = intersection(c, cuboid.0) {
-                    sub_intersect.push((c2, reboot.1 != cuboid.1));
+                    sub_intersect.push((c2, !cuboid.1));
                 }
             }
 
@@ -108,7 +101,7 @@ fn part1(input: &String) -> EmptyResult {
 
             // add this cuboid to list of cuboids
             // ONLY if it is on.
-            if reboot.1 { cuboids.push(reboot); }
+            if reboot.1 { cuboids.push(*reboot); }
         }
     }
 
@@ -118,12 +111,20 @@ fn part1(input: &String) -> EmptyResult {
         if cuboid.1 { sum += cuboid_volume(cuboid.0); }
         else { sum -= cuboid_volume(cuboid.0); }
     }
+    
+    sum
+}
+
+fn part1(input: &String) -> EmptyResult {
+    let sum = solve(parse(input), Some(((-50,-50,-50),(50,50,50))));
 
     println!("part 1: {}", sum);
     Ok(())
 }
 
 fn part2(input: &String) -> EmptyResult {
+    let sum = solve(parse(input), None);
 
+    println!("part 2: {}", sum);
     Ok(())
 }
