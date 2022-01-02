@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::{self, Read};
 use std::cmp::{max as max, Ordering};
 use std::cmp::min as min;
@@ -75,9 +76,9 @@ fn intersection(a: Cuboid, b: Cuboid) -> Option<Cuboid> {
 }
 
 fn cuboid_volume(input: Cuboid) -> u64 {
-    (input.0.0 - input.1.0).abs() as u64 *
-    (input.0.1 - input.1.1).abs() as u64 *
-    (input.0.2 - input.1.2).abs() as u64
+    ((input.0.0 - input.1.0).abs() as u64 + 1) *
+    ((input.0.1 - input.1.1).abs() as u64 + 1) *
+    ((input.0.2 - input.1.2).abs() as u64 + 1)
 }
 
 fn part1(input: &String) -> EmptyResult {
@@ -86,51 +87,36 @@ fn part1(input: &String) -> EmptyResult {
     let mut reboots = parse(input);
     reboots.sort_by(|a, b| {
         if a.1 == b.1 { Ordering::Equal }
-        else if a.1 && !b.1 { Ordering::Less }
-        else { Ordering::Greater }
+        else if a.1 && !b.1 { Ordering::Greater }
+        else { Ordering::Less }
     });
 
-
     const VALID_CUBE: Cuboid = ((-50, -50, -50), (50, 50, 50));
-    let mut cuboids: Vec<Cuboid> = Vec::new();
-    let mut off_cuboids: Vec<Cuboid> = Vec::new();
+    let mut cuboids: Vec<(Cuboid, bool)> = Vec::new();
 
     for reboot in reboots {
         if let Some(c) = intersection(reboot.0, VALID_CUBE) {
-            if reboot.1 {
-                // check for any intersections with other "ON" cuboids
-                for cuboid in &cuboids {
-                    if let Some(c2) = intersection(c, *cuboid) {
-                        // if this intersects with another "ON" cuboid
-                        // then remember to subtract the intersecting area
-                        //off_cuboids.push(c2);
-                    }
-                }
-
-                // cuboid flips cubes on
-                cuboids.push(c);
-            } else {
-                // check for any intersections with other "ON" cuboids
-                for cuboid in &cuboids {
-                    if let Some(c2) = intersection(c, *cuboid) {
-                        // if this intersects with an "ON" cuboid
-                        // then remember to subtract the intersecting area
-                        off_cuboids.push(c2);
-                    }
+            // check for any intersections with other "ON" cuboids
+            let mut sub_intersect = Vec::new();
+            for cuboid in &cuboids {
+                if let Some(c2) = intersection(c, cuboid.0) {
+                    sub_intersect.push((c2, reboot.1 != cuboid.1));
                 }
             }
+
+            cuboids.append(&mut sub_intersect);
+
+            // add this cuboid to list of cuboids
+            // ONLY if it is on.
+            if reboot.1 { cuboids.push(reboot); }
         }
     }
 
-    println!("{:?}\n\n\n{:?}", cuboids, off_cuboids);
-    let mut sum: u64 = 0;
     // calculate cuboid volumes and add them
-    for cuboid in cuboids {
-        sum += cuboid_volume(cuboid);
-    }
-
-    for cuboid in off_cuboids {
-        sum -= cuboid_volume(cuboid);
+    let mut sum: u64 = 0;
+    for cuboid in &cuboids {
+        if cuboid.1 { sum += cuboid_volume(cuboid.0); }
+        else { sum -= cuboid_volume(cuboid.0); }
     }
 
     println!("part 1: {}", sum);
