@@ -28,33 +28,6 @@ fn main() -> EmptyResult {
     Ok(())
 }
 
-fn num_to_vec(n: i64, xs: &mut Vec<i64>) {
-    if n >= 10 {
-        num_to_vec(n / 10, xs);
-    }
-    if n % 10 == 0 { return; }
-    xs.push(n % 10);
-}
-
-fn sim_stack(block: BlkConf, inp: i64, stack: &mut Vec<i64>) {
-    fn pop(stack: &mut Vec<i64>) -> i64 {
-        if stack.len() == 0 {
-            0
-        } else {
-            *stack.last().unwrap()
-        }
-    }
-
-    let top = pop(stack) + block.1;
-    if block.0 {
-        stack.pop();
-    }
-
-    if top != inp {
-        stack.push(inp + block.2);
-    }
-}
-
 fn solve(max: bool) -> i64 {
     // each block will actually add a new number onto the stack,
     // but POP operations also remove one and so there ends up
