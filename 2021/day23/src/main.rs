@@ -1,10 +1,10 @@
-use std::{io::{self, Read}, hash::{Hasher, Hash}};
+use std::{io::{self, Read}, hash::{Hasher, Hash}, collections::{BinaryHeap, HashMap}, cmp::Ordering};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 type Hallway = [Amphipod; 11];
 type Room = Vec<Amphipod>;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum Amphipod {
     Amber,
     Bronze,
@@ -25,7 +25,7 @@ impl Amphipod {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 struct State {
     energy_cost: u32,
 
@@ -47,6 +47,33 @@ impl Hash for State {
     }
 }
 
+impl PartialEq for State {
+    fn eq(&self, other: &Self) -> bool {
+        self.hallway == other.hallway &&
+        self.a == other.a &&
+        self.b == other.b &&
+        self.c == other.c &&
+        self.d == other.d
+    }
+}
+
+impl Ord for State {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.energy_cost.cmp(&self.energy_cost)
+            .then_with(|| self.a.cmp(&other.a))
+            .then_with(|| self.b.cmp(&other.b))
+            .then_with(|| self.c.cmp(&other.c))
+            .then_with(|| self.d.cmp(&other.d))
+            .then_with(|| self.hallway.cmp(&other.hallway))
+    }
+}
+
+impl PartialOrd for State {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 fn abs_diff(a: usize, b: usize) -> u32 {
     if a > b {
         (a - b) as u32
@@ -60,6 +87,16 @@ fn hallway_cost(start: usize, dest: usize, pod_cost: u32) -> u32 {
 }
 
 impl State {
+    fn is_solved(&self) -> bool {
+        for i in 0 .. 4 {
+            if !self.is_room_sorted(i) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     fn generate_substates(&self) -> Vec<Self> {
         let mut out = Vec::new();
 
@@ -135,7 +172,13 @@ impl State {
     }
 
     fn can_go(&self, start: usize, dest: usize) -> bool {
-        for i in start ..= dest {
+        let range = if start > dest {
+            dest ..= start
+        } else {
+            start ..= dest 
+        };
+
+        for i in range {
             if self.hallway[i] != Amphipod::Empty {
                 return false;
             }
@@ -177,6 +220,7 @@ impl State {
             }
         }
 
+        if room.len() != 2 { return false; }
         true
     }
 
@@ -237,14 +281,57 @@ impl State {
 }
 
 struct Solver {
-    min_cost: u32
+    queue: BinaryHeap<State>,
+    states: HashMap<State, u32>
 }
 
 impl Solver {
     fn solve(input: State) -> u32 {
-        let mut solver = Solver { min_cost: u32::MAX };
+        let mut solver = Solver { 
+            queue: BinaryHeap::new(),
+            states: HashMap::new()
+        };
 
-        solver.min_cost
+        solver.queue.push(input);
+
+        while let Some(state) = solver.queue.pop() {
+            // check if state is solved
+            if state.is_solved() {
+                print_state(state.clone());
+                return state.energy_cost;
+            }
+            
+            // check if there is a better state
+            if let Some(cost) = solver.states.get_mut(&state) {
+                if *cost < state.energy_cost { 
+                    continue; 
+                } else {
+                    *cost = state.energy_cost;
+                }
+            }
+
+            let new_states = state.generate_substates();
+            for state in new_states {
+                if let Some(cost) = solver.states.get_mut(&state) {
+                    if *cost <= state.energy_cost { 
+                        continue; 
+                    } else {
+                        *cost = state.energy_cost;
+                        solver.queue.push(state.clone());
+                    }
+                } else {
+                    solver.queue.push(state.clone());
+
+                    let cost = state.energy_cost;
+                    solver.states.insert(state, cost);
+                }
+            }
+
+            println!("queue: {} states: {} cost: {}", solver.queue.len(), solver.states.len(), state.energy_cost);
+            print_state(state);
+        }
+
+        u32::MAX
     }
 }
 
@@ -283,9 +370,54 @@ fn parse(input: &String) -> State {
     }
 }
 
-fn part1(input: &String) -> EmptyResult {
-    println!("{:?}", parse(input));
+fn atc(i: Amphipod) -> char {
+    match i {
+        Amphipod::Amber => 'A',
+        Amphipod::Bronze => 'B',
+        Amphipod::Copper => 'C',
+        Amphipod::Desert => 'D',
+        Amphipod::Empty => '.'
+    }
+}
 
+fn print_state(input: State) {
+    println!("#############");
+    print!("#");
+    for i in input.hallway {
+        print!("{}", atc(i));
+    }
+    print!("#   {}\n", input.energy_cost);
+
+    let a = input.a;
+    let b = input.b;
+    let c = input.c;
+    let d = input.d;
+    
+    print!("###");
+    print!("{}", atc(if a.len() == 2 { a[1] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if b.len() == 2 { b[1] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if c.len() == 2 { c[1] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if d.len() == 2 { d[1] } else { Amphipod::Empty }));
+    print!("###\n");
+
+    print!("  #");
+    print!("{}", atc(if a.len() >= 1 { a[0] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if b.len() >= 1 { b[0] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if c.len() >= 1 { c[0] } else { Amphipod::Empty }));
+    print!("#");
+    print!("{}", atc(if d.len() >= 1 { d[0] } else { Amphipod::Empty }));
+    print!("#  \n");
+
+    println!("  #########");
+}
+
+fn part1(input: &String) -> EmptyResult {
+    println!("part 1: {}", Solver::solve(parse(input)));
     Ok(())
 }
 
