@@ -255,7 +255,7 @@ impl State {
 
         // this will add the energy cost once if the amphipod only had
         // to move one tile down. otherwise it will add it twice
-        self.energy_cost = pod.get_cost() * (3 - room.len()) as u32; 
+        self.energy_cost += pod.get_cost() * (3 - room.len()) as u32; 
     }
 
     fn leave_room(&mut self, room: usize) -> Amphipod {
@@ -303,7 +303,7 @@ impl Solver {
             // check if there is a better state
             if let Some(cost) = solver.states.get_mut(&state) {
                 if *cost < state.energy_cost { 
-                    continue; 
+                    continue
                 } else {
                     *cost = state.energy_cost;
                 }
@@ -364,52 +364,6 @@ fn parse(input: &String) -> State {
         c: vec![cta(row_b.chars().nth(7).unwrap()), cta(row_a.chars().nth(7).unwrap())],
         d: vec![cta(row_b.chars().nth(9).unwrap()), cta(row_a.chars().nth(9).unwrap())]
     }
-}
-
-fn atc(i: Amphipod) -> char {
-    match i {
-        Amphipod::Amber => 'A',
-        Amphipod::Bronze => 'B',
-        Amphipod::Copper => 'C',
-        Amphipod::Desert => 'D',
-        Amphipod::Empty => '.'
-    }
-}
-
-fn print_state(input: State) {
-    println!("#############");
-    print!("#");
-    for i in input.hallway {
-        print!("{}", atc(i));
-    }
-    print!("#   {}\n", input.energy_cost);
-
-    let a = input.a;
-    let b = input.b;
-    let c = input.c;
-    let d = input.d;
-    
-    print!("###");
-    print!("{}", atc(if a.len() == 2 { a[1] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if b.len() == 2 { b[1] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if c.len() == 2 { c[1] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if d.len() == 2 { d[1] } else { Amphipod::Empty }));
-    print!("###\n");
-
-    print!("  #");
-    print!("{}", atc(if a.len() >= 1 { a[0] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if b.len() >= 1 { b[0] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if c.len() >= 1 { c[0] } else { Amphipod::Empty }));
-    print!("#");
-    print!("{}", atc(if d.len() >= 1 { d[0] } else { Amphipod::Empty }));
-    print!("#  \n");
-
-    println!("  #########");
 }
 
 fn part1(input: &String) -> EmptyResult {
