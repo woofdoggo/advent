@@ -26,27 +26,6 @@ fn main() -> EmptyResult {
     Ok(())
 }
 
-fn sim(block: BlkConf, mut z: i64, inp: i64) -> i64 {
-    let mut x = z % 26;
-    x += block.1;
-
-    if block.0 {
-        z /= 26;
-    }
-
-    if x == inp {
-        x = 0
-    } else {
-        x = 1
-    }
-
-    let mut y = x * 25 + 1;
-    z *= y;
-    y = inp + block.2;
-    y *= x;
-    z+y
-}
-
 fn num_to_vec(n: i64, xs: &mut Vec<i64>) {
     if n >= 10 {
         num_to_vec(n / 10, xs);
@@ -81,30 +60,6 @@ fn part1() -> EmptyResult {
     //
     // PUSH (#) POP (v) : # # # # v # v # v v # v v v
     // block #          : 0 1 2 3 4 5 6 7 8 9 a b c d
-
-    let mut n = Vec::new();
-    for i in 10000 ..= 99999 {
-        n.clear();
-        num_to_vec(i, &mut n);
-
-        if n.len() < 5 { continue; }
-        
-        let mut stack = Vec::new();
-        let mut z = 0;
-        for j in 0 .. 5 {
-            z = sim(DIFFS[j], z, n[j]);
-            sim_stack(DIFFS[j], n[j], &mut stack);
-        }
-
-        let mut sum_i = 0;
-        let mut sum = 0;
-        while let Some(v) = stack.pop() {
-            sum += v * 26_i64.pow(sum_i);
-            sum_i += 1;
-        }
-
-        assert_eq!(sum, z);
-    }
 
     Ok(())
 }
