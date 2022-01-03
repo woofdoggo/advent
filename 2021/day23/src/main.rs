@@ -89,7 +89,7 @@ fn hallway_cost(start: usize, dest: usize, pod_cost: u32) -> u32 {
 impl State {
     fn is_solved(&self) -> bool {
         for i in 0 .. 4 {
-            if !self.is_room_sorted(i) {
+            if !self.is_room_sorted(i) || self.get_room(i).len() < 2 {
                 return false;
             }
         }
@@ -139,6 +139,7 @@ impl State {
                 if self.can_enter_room(*pod) {
                     let mut new = self.clone();
                     new.leave_and_goto(i, room);
+                    new.energy_cost += hallway_cost(i * 2 + 2, room * 2 + 2, pod.get_cost());
 
                     out.push(new);
                 }
@@ -173,9 +174,9 @@ impl State {
 
     fn can_go(&self, start: usize, dest: usize) -> bool {
         let range = if start > dest {
-            dest ..= start
+            dest ..= (start - 1)
         } else {
-            start ..= dest 
+            (start + 1) ..= dest 
         };
 
         for i in range {
@@ -220,7 +221,6 @@ impl State {
             }
         }
 
-        if room.len() != 2 { return false; }
         true
     }
 
@@ -297,7 +297,6 @@ impl Solver {
         while let Some(state) = solver.queue.pop() {
             // check if state is solved
             if state.is_solved() {
-                print_state(state.clone());
                 return state.energy_cost;
             }
             
@@ -322,13 +321,10 @@ impl Solver {
                 } else {
                     solver.queue.push(state.clone());
 
-                    let cost = state.energy_cost;
-                    solver.states.insert(state, cost);
+                    let state_cost = state.energy_cost;
+                    solver.states.insert(state, state_cost);
                 }
             }
-
-            println!("queue: {} states: {} cost: {}", solver.queue.len(), solver.states.len(), state.energy_cost);
-            print_state(state);
         }
 
         u32::MAX
