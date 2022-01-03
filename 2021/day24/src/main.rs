@@ -12,7 +12,7 @@ enum Register {
 #[derive(Clone, Copy, Debug)]
 enum Source {
     Reg(Register),
-    Const(i32)
+    Const(i64)
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -28,16 +28,16 @@ enum Instruction {
 struct ALU<'a> {
     instructions: &'a Vec<Instruction>,
     inst_ptr: usize,
-    input: Vec<i32>,
+    input: Vec<i64>,
     input_ptr: usize,
-    w: i32,
-    x: i32,
-    y: i32,
-    z: i32
+    w: i64,
+    x: i64,
+    y: i64,
+    z: i64
 }
 
 impl<'a> ALU<'a> {
-    fn run_program(instructions: &Vec<Instruction>, input: Vec<i32>) -> [i32; 4] {
+    fn run_program(instructions: &Vec<Instruction>, input: Vec<i64>) -> [i64; 4] {
         let mut alu = ALU {
             instructions,
             inst_ptr: 0,
@@ -98,14 +98,14 @@ impl<'a> ALU<'a> {
         }
     }
 
-    fn read(&self, src: Source) -> i32 {
+    fn read(&self, src: Source) -> i64 {
         match src {
             Source::Reg(reg) => self.read_register(reg),
             Source::Const(int) => int
         }
     }
 
-    fn read_register(&self, register: Register) -> i32 {
+    fn read_register(&self, register: Register) -> i64 {
         match register {
             Register::W => self.w,
             Register::X => self.x,
@@ -114,7 +114,7 @@ impl<'a> ALU<'a> {
         }
     }
 
-    fn set_register(&mut self, register: Register, value: i32) {
+    fn set_register(&mut self, register: Register, value: i64) {
         match register {
             Register::W => self.w = value,
             Register::X => self.x = value,
@@ -144,8 +144,8 @@ fn str(input: &str) -> Register {
     }
 }
 
-fn sti(input: &str) -> i32 {
-    input.parse::<i32>().unwrap()
+fn sti(input: &str) -> i64 {
+    input.parse::<i64>().unwrap()
 }
 
 fn src(input: &str) -> Source {
@@ -180,6 +180,22 @@ fn parse(input: &String) -> Vec<Instruction> {
 
 fn part1(input: &String) -> EmptyResult {
     let instrs = parse(input);
+    'outer: for i in (0 .. 100000000000000_i64).rev() {
+        let str = i.to_string();
+        let mut out: Vec<i64> = Vec::new();
+        for c in str.chars() {
+            let o = c.to_digit(10).unwrap() as i64;
+            if o == 0 { continue 'outer; }
+
+            out.push(o);
+        }
+
+        let r = ALU::run_program(&instrs, out);
+        if r[3] == 0 {
+            println!("part 1: {}", i);
+            break;
+        }
+    }
 
     Ok(())
 }
