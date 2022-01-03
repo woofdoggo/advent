@@ -1,6 +1,4 @@
-mod part2;
-
-use std::{io::{self, Read}, hash::{Hasher, Hash}, collections::{BinaryHeap, HashMap}, cmp::Ordering};
+use std::{hash::{Hasher, Hash}, collections::{BinaryHeap, HashMap}, cmp::Ordering};
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 type Hallway = [Amphipod; 11];
@@ -91,7 +89,7 @@ fn hallway_cost(start: usize, dest: usize, pod_cost: u32) -> u32 {
 impl State {
     fn is_solved(&self) -> bool {
         for i in 0 .. 4 {
-            if !self.is_room_sorted(i) || self.get_room(i).len() < 2 {
+            if !self.is_room_sorted(i) || self.get_room(i).len() < 4 {
                 return false;
             }
         }
@@ -249,7 +247,7 @@ impl State {
     fn enter_room(&mut self, room: usize, pod: Amphipod) {
         let room = self.get_room_mut(room);
 
-        if room.len() == 2 {
+        if room.len() == 4 {
             panic!("room enter: room is full");
         }
 
@@ -257,7 +255,7 @@ impl State {
 
         // this will add the energy cost once if the amphipod only had
         // to move one tile down. otherwise it will add it twice
-        self.energy_cost += pod.get_cost() * (3 - room.len()) as u32; 
+        self.energy_cost += pod.get_cost() * (5 - room.len()) as u32; 
     }
 
     fn leave_room(&mut self, room: usize) -> Amphipod {
@@ -266,7 +264,7 @@ impl State {
 
         // this will add the energy const once if the amphipod only had
         // to move one tile up. otherwise it will add it twice
-        self.energy_cost += pod.get_cost() * (2 - room.len()) as u32;
+        self.energy_cost += pod.get_cost() * (4 - room.len()) as u32;
 
         pod
     }
@@ -333,16 +331,6 @@ impl Solver {
     }
 }
 
-fn main() -> EmptyResult {
-    let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
-
-    part1(&input)?;
-    crate::part2::part2(&input)?;
-
-    Ok(())
-}
-
 fn cta(input: char) -> Amphipod {
     match input {
         'A' => Amphipod::Amber,
@@ -361,14 +349,14 @@ fn parse(input: &String) -> State {
         energy_cost: 0,
 
         hallway: [Amphipod::Empty; 11],
-        a: vec![cta(row_b.chars().nth(3).unwrap()), cta(row_a.chars().nth(3).unwrap())],
-        b: vec![cta(row_b.chars().nth(5).unwrap()), cta(row_a.chars().nth(5).unwrap())],
-        c: vec![cta(row_b.chars().nth(7).unwrap()), cta(row_a.chars().nth(7).unwrap())],
-        d: vec![cta(row_b.chars().nth(9).unwrap()), cta(row_a.chars().nth(9).unwrap())]
+        a: vec![cta(row_b.chars().nth(3).unwrap()), Amphipod::Desert, Amphipod::Desert, cta(row_a.chars().nth(3).unwrap())],
+        b: vec![cta(row_b.chars().nth(5).unwrap()), Amphipod::Bronze, Amphipod::Copper, cta(row_a.chars().nth(5).unwrap())],
+        c: vec![cta(row_b.chars().nth(7).unwrap()), Amphipod::Amber, Amphipod::Bronze, cta(row_a.chars().nth(7).unwrap())],
+        d: vec![cta(row_b.chars().nth(9).unwrap()), Amphipod::Copper, Amphipod::Amber, cta(row_a.chars().nth(9).unwrap())]
     }
 }
 
-fn part1(input: &String) -> EmptyResult {
-    println!("part 1: {}", Solver::solve(parse(input)));
+pub fn part2(input: &String) -> EmptyResult {
+    println!("part 2: {}", Solver::solve(parse(input)));
     Ok(())
 }
