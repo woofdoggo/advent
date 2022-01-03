@@ -1,6 +1,4 @@
-mod test;
-
-use std::io::{self, Read};
+use std::fs::read_to_string;
 
 type EmptyResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -37,8 +35,8 @@ struct ALU<'a> {
 }
 
 impl<'a> ALU<'a> {
-    fn run_program(instructions: &Vec<Instruction>, input: Vec<i64>) -> [i64; 4] {
-        let mut alu = ALU {
+    fn new(instructions: &Vec<Instruction>, input: Vec<i64>) -> ALU {
+        ALU {
             instructions,
             inst_ptr: 0,
             input,
@@ -47,13 +45,13 @@ impl<'a> ALU<'a> {
             x: 0,
             y: 0,
             z: 0
-        };
-
-        while alu.inst_ptr < alu.instructions.len() {
-            alu.cycle();
         }
+    }
 
-        [alu.w, alu.x, alu.y, alu.z]
+    fn run(&mut self) {
+        while self.inst_ptr != self.instructions.len() {
+            self.cycle();
+        }
     }
 
     fn cycle(&mut self) {
@@ -125,11 +123,8 @@ impl<'a> ALU<'a> {
 }
 
 fn main() -> EmptyResult {
-    let mut input = String::new();
-    io::stdin().read_to_string(&mut input)?;
-
-    part1(&input)?;
-    part2(&input)?;
+    part1()?;
+    part2()?;
 
     Ok(())
 }
@@ -158,7 +153,18 @@ fn src(input: &str) -> Source {
     }
 }
 
-fn parse(input: &String) -> Vec<Instruction> {
+fn parse() -> Vec<Vec<Instruction>> {
+    let mut out = Vec::new();
+
+    for i in 1 ..= 14 {
+        let contents = read_to_string(format!("./input/block{}.txt", i)).unwrap();
+        out.push(parse_instructions(&contents));
+    }
+
+    out
+}
+
+fn parse_instructions(input: &String) -> Vec<Instruction> {
     let mut out = Vec::new();
 
     for line in input.lines() {
@@ -178,29 +184,37 @@ fn parse(input: &String) -> Vec<Instruction> {
     out
 }
 
-fn part1(input: &String) -> EmptyResult {
-    let instrs = parse(input);
-    'outer: for i in (0 .. 100000000000000_i64).rev() {
-        let str = i.to_string();
-        let mut out: Vec<i64> = Vec::new();
-        for c in str.chars() {
-            let o = c.to_digit(10).unwrap() as i64;
-            if o == 0 { continue 'outer; }
+/// Returns: (z, i)
+fn solve(block: &Vec<Instruction>, out: i64) -> (i64, i64) {
+    for i in (1 ..= 9).rev() {
+        for z in 0 ..= 1000000 {
+            let mut alu = ALU::new(&block, vec![i]);
+            alu.z = z;
+            alu.run();
 
-            out.push(o);
-        }
-
-        let r = ALU::run_program(&instrs, out);
-        if r[3] == 0 {
-            println!("part 1: {}", i);
-            break;
+            if alu.z == out {
+                return (z, i);
+            }
         }
     }
+    
+    (0,0)
+}
 
+fn part1() -> EmptyResult {
+    let blocks = parse();
+    let mut solves: Vec<(i64, i64)> = Vec::new();
+
+    solves.push(solve(blocks.last().unwrap(), 0));
+    for i in (0 .. blocks.len() - 1).rev() {
+        solves.push(solve(&blocks[i], solves.last().unwrap().0));
+    }
+
+    println!("{:?}", solves);
     Ok(())
 }
 
-fn part2(input: &String) -> EmptyResult {
+fn part2() -> EmptyResult {
 
     Ok(())
 }
